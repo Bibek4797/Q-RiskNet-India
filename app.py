@@ -404,21 +404,24 @@ with tab_network:
             )
             layout_style = st.selectbox("Network Layout", ["circular", "spring"])
             
-            # Dynamic Cap on Target Communities based on K (selected sectors) to prevent ValueErrors
-            max_communities = max(2, len(selected_sectors) - 1)
-            default_comm_val = min(3, max_communities)
+            comm_mode = st.radio("Community Detection Mode", ["Auto (Eigengap Heuristic)", "Manual Choice"], horizontal=True)
             
-            n_comm = st.slider(
-                "Target Communities", 
-                min_value=2, 
-                max_value=max_communities, 
-                value=default_comm_val,
-                help="Groups sectors via Spectral Clustering. Dynamically capped by your selected indices to prevent computation errors."
-            )
+            if comm_mode == "Manual Choice":
+                max_communities = max(2, len(selected_sectors) - 1)
+                default_comm_val = min(3, max_communities)
+                n_comm = st.slider(
+                    "Target Communities", 
+                    min_value=2, 
+                    max_value=max_communities, 
+                    value=default_comm_val,
+                    help="Groups sectors via Spectral Clustering."
+                )
+            else:
+                n_comm = "auto"
             
         with net_col1:
             try:
-                # Spectral clustering communities with dynamic clamp safety
+                # Spectral clustering communities with Eigengap Heuristic support
                 comms = nu.detect_communities(spill_df, n_communities=n_comm)
                 
                 # Interactive Directed Network Diagram

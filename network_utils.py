@@ -42,31 +42,69 @@ def build_mst_graph(dist_matrix):
         diag.log_info(f"MST generated. Nodes: {len(mst.nodes)}, Edges: {len(mst.edges)}")
         return mst
 
-def detect_communities(spillover_matrix, n_communities=3):
+def find_optimal_eigengap_k(similarity_matrix):
+    """
+    Determines the optimal number of clusters k using the Eigengap Heuristic.
+    k_opt = argmax_k (lambda_{k+1} - lambda_k)
+    """
+    K = similarity_matrix.shape[0]
+    if K <= 2:
+        return 1
+        
+    # Degree matrix D
+    deg_vector = np.sum(similarity_matrix, axis=1)
+    with np.errstate(divide='ignore'):
+        d_inv_sqrt = np.power(deg_vector, -0.5)
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.0
+    D_inv_sqrt = np.diag(d_inv_sqrt)
+    
+    # Normalized Laplacian L_sym = I - D^(-1/2) S D^(-1/2)
+    L_sym = np.eye(K) - np.dot(np.dot(D_inv_sqrt, similarity_matrix), D_inv_sqrt)
+    
+    # Compute sorted eigenvalues
+    eigenvalues = np.sort(np.linalg.eigvalsh(L_sym))
+    
+    # Calculate gaps between consecutive eigenvalues
+    max_gap = -1.0
+    optimal_k = 2
+    
+    for k in range(1, K - 1):
+        gap = eigenvalues[k] - eigenvalues[k - 1]
+        if gap > max_gap:
+            max_gap = gap
+            optimal_k = k
+            
+    return max(2, min(optimal_k, K - 1))
+
+def detect_communities(spillover_matrix, n_communities="auto"):
     """
     Uses Spectral Clustering to partition the spillover network into communities.
-    Clamps n_communities dynamically to prevent ValueError.
+    Supports manual n_communities or automatic optimal selection via the Eigengap Heuristic.
     """
     sectors = spillover_matrix.columns
     K = len(sectors)
     
-    # Clamp community counts dynamically to K-1 to prevent ValueError
-    target_communities = n_communities
-    if target_communities >= K:
-        target_communities = max(1, K - 1)
-        diag.log_warning(f"Target communities ({n_communities}) >= K ({K}). Clamped to: {target_communities}")
+    # Symmetrical similarity matrix: S_ij = (spillover(i->j) + spillover(j->i)) / 2
+    similarity = 0.5 * (spillover_matrix.values + spillover_matrix.values.T)
+    # Ensure diagonal is zero for community detection
+    np.fill_diagonal(similarity, 0.0)
+    
+    # Normalize similarity to [0, 1] scale for robust clustering
+    max_val = np.max(similarity)
+    if max_val > 0:
+        similarity = similarity / max_val
+        
+    # Determine target communities
+    if n_communities == "auto" or n_communities is None:
+        target_communities = find_optimal_eigengap_k(similarity)
+        diag.log_info(f"Eigengap Heuristic auto-detected optimal communities k={target_communities}")
+    else:
+        target_communities = int(n_communities)
+        if target_communities >= K:
+            target_communities = max(1, K - 1)
+            diag.log_warning(f"Target communities ({n_communities}) >= K ({K}). Clamped to: {target_communities}")
         
     with diag.DiagnosticTimer(f"Spectral Clustering Community Detection (target={target_communities})"):
-        # Symmetrical similarity matrix: S_ij = (spillover(i->j) + spillover(j->i)) / 2
-        similarity = 0.5 * (spillover_matrix.values + spillover_matrix.values.T)
-        # Ensure diagonal is zero for community detection
-        np.fill_diagonal(similarity, 0.0)
-        
-        # Normalize similarity to [0, 1] scale for robust clustering
-        max_val = np.max(similarity)
-        if max_val > 0:
-            similarity = similarity / max_val
-            
         try:
             sc = SpectralClustering(
                 n_clusters=target_communities, 
