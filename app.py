@@ -141,12 +141,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Create tabs immediately so they are available even on errors
-tab_data, tab_spillover, tab_network, tab_rolling, tab_diag = st.tabs([
+tab_data, tab_spillover, tab_network, tab_rolling = st.tabs([
     "📊 Data Center", 
     "📈 Volatility Spillover", 
     "🕸️ Network Topology", 
-    "🕒 Dynamic TCI",
-    "🔧 Diagnostics & Logs"
+    "🕒 Dynamic TCI"
 ])
 
 # Ensure adequate sectors are selected
@@ -582,59 +581,14 @@ with tab_rolling:
         else:
             st.info("Click 'Calculate Dynamic TCI' to run the rolling window analysis. Note: LSTM rolling models may take a few minutes.")
 
-# =====================================================================
-# TAB 5: CENTRALIZED DIAGNOSTIC & LOGGING CONSOLE
-# =====================================================================
-with tab_diag:
-    st.subheader("🔧 System Backend & Diagnostics Console")
-    st.markdown("""
-    This console provides real-time visibility into the backend execution flow, data dimensions, model loss convergence values, 
-    and full Python tracebacks in case of any runtime errors.
-    """)
-    
-    col_stat1, col_stat2, col_stat3 = st.columns(3)
-    with col_stat1:
-        st.metric("Total Selected Sectors", len(selected_sectors))
-    with col_stat2:
-        st.metric("Data Range Points", len(model_input) if not model_input.empty else 0)
-    with col_stat3:
-        st.metric("Total Log entries", len(st.session_state.get('diagnostics_logs', [])))
-        
-    log_filter = st.radio("Filter Log Level", ["ALL", "INFO", "WARNING", "ERROR"], horizontal=True)
-    
-    clear_logs_btn = st.button("🗑️ Clear Diagnostic Logs")
-    if clear_logs_btn:
-        st.session_state['diagnostics_logs'] = []
-        diag.log_info("Logs cleared by user.")
-        st.rerun()
-        
-    st.markdown("### Log Records")
-    
+# Optional developer log inspector in sidebar expander
+with st.sidebar.expander("🛠️ Developer Diagnostics Console", expanded=False):
+    st.caption("Backend execution events & performance logs:")
     logs = st.session_state.get('diagnostics_logs', [])
-    
     if not logs:
-        st.info("No log entries recorded.")
+        st.caption("No log entries recorded.")
     else:
-        # Loop backwards to show newest logs first
-        for entry in reversed(logs):
-            if log_filter != "ALL" and entry["level"] != log_filter:
-                continue
-                
-            color = "#3b82f6" # Info = Blue
-            if entry["level"] == "WARNING":
-                color = "#f59e0b" # Warning = Orange
-            elif entry["level"] == "ERROR":
-                color = "#ef4444" # Error = Red
-                
-            st.markdown(f"""
-            <div style='padding: 8px 12px; border-radius: 6px; border-left: 4px solid {color}; background-color: #1e293b; margin-bottom: 8px; font-family: monospace; font-size: 0.9rem;'>
-                <span style='color: #64748b;'>[{entry['timestamp']}]</span> 
-                <span style='color: {color}; font-weight: bold;'>[{entry['level']}]</span> 
-                <span style='color: #f1f5f9;'>{entry['message']}</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # If log has a traceback, show expandable details
-            if entry["traceback"] is not None:
-                with st.expander("🔍 Show Full Traceback Details"):
-                    st.code(entry["traceback"], language="python")
+        for entry in reversed(logs[-10:]):
+            st.text(f"[{entry['timestamp']}] [{entry['level']}] {entry['message']}")
+            if entry.get("traceback"):
+                st.code(entry["traceback"], language="python")

@@ -93,15 +93,14 @@ Open your default web browser and navigate to **`http://localhost:8501`**.
 
 ---
 
-## 📊 Dashboard Overview
+## 📊 Dashboard Architecture
 
 | Tab | Feature Description |
 | :--- | :--- |
 | **📊 Data Center** | Normalized index prices, Pearson correlation heatmaps, ADF stationarity, and Jarque-Bera normality tests. |
-| **📈 Volatility Spillover** | Select Quantile ($\tau=0.05, 0.50, 0.95$), train QVAR/Quantile LSTM, view Net Spillover bar charts and DY tables. |
-| **🕸️ Network Topology** | Interactive Directed Plotly Risk Graph, Minimum Spanning Tree (MST) backbone, and Spectral Clustering groups. |
+| **📈 Volatility Spillover** | Select Quantile ($\tau=0.05, 0.50, 0.95$), train QVAR/Quantile LSTM with Early Stopping, view Net Spillover bar charts and DY tables. |
+| **🕸️ Network Topology** | Interactive Directed Plotly Risk Graph, Minimum Spanning Tree (MST) backbone, and Eigengap Spectral Clustering. |
 | **🕒 Dynamic TCI** | Rolling-window time-varying TCI evaluation across historical timeframes. |
-| **🔧 Diagnostics & Logs** | Real-time console tracking execution timers, data shapes, and full stack tracebacks. |
 
 ---
 
