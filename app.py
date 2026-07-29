@@ -102,19 +102,23 @@ st.sidebar.subheader("⚙️ Model Settings")
 model_choice = st.sidebar.radio("Model Type", ["Quantile VAR (QVAR)", "Quantile LSTM"])
 quantile = st.sidebar.slider("Quantile Value (τ)", min_value=0.01, max_value=0.99, value=0.50, step=0.01)
 
-# Dynamic parameter sliders based on model selection
-# Declare variables with defaults to avoid NameErrors in references
+optim_mode = st.sidebar.radio("Hyperparameter Engine", ["⚡ Auto-Optimized (Recommended)", "⚙️ Custom Parameters"])
+
+# Defaults
 lags = 2
 seq_len = 5
-epochs = 30
-hidden_dim = 16
+epochs = 50
+hidden_dim = "auto"
 
-if model_choice == "Quantile VAR (QVAR)":
-    lags = st.sidebar.slider("Autoregressive Lags (p)", min_value=1, max_value=5, value=2)
+if optim_mode == "⚙️ Custom Parameters":
+    if model_choice == "Quantile VAR (QVAR)":
+        lags = st.sidebar.slider("Autoregressive Lags (p)", min_value=1, max_value=5, value=2)
+    else:
+        seq_len = st.sidebar.slider("Sequence Length (Lags)", min_value=3, max_value=15, value=5)
+        epochs = st.sidebar.slider("LSTM Epochs", min_value=10, max_value=100, value=30, step=5)
+        hidden_dim = st.sidebar.slider("Hidden Layer Nodes", min_value=8, max_value=64, value=16, step=8)
 else:
-    seq_len = st.sidebar.slider("Sequence Length (Lags)", min_value=3, max_value=15, value=5)
-    epochs = st.sidebar.slider("LSTM Epochs", min_value=10, max_value=100, value=30, step=5)
-    hidden_dim = st.sidebar.slider("Hidden Layer Nodes", min_value=8, max_value=64, value=16, step=8)
+    st.sidebar.caption("🤖 Auto-tunes hidden layers, early-stopping convergence, and network topology automatically.")
 
 volatility_proxy = st.sidebar.selectbox("Risk / Volatility Metric", ["Log Returns", "GARCH(1,1) Volatility"])
 forecast_horizon = st.sidebar.slider("Forecast Horizon (H)", min_value=5, max_value=30, value=10)

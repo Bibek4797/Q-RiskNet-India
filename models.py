@@ -119,22 +119,31 @@ class LSTMNet(nn.Module):
         return preds
 
 class LSTMQuantileModel:
-    def __init__(self, seq_len=5, hidden_dim=16, quantile=0.5, epochs=30, lr=0.01):
+    def __init__(self, seq_len=5, hidden_dim="auto", quantile=0.5, epochs=50, lr=0.01, early_stopping=True, patience=5):
         self.seq_len = seq_len
         self.hidden_dim = hidden_dim
         self.quantile = quantile
         self.epochs = epochs
         self.lr = lr
+        self.early_stopping = early_stopping
+        self.patience = patience
         self.model = None
         self.columns = []
         self.means = None
         self.stds = None
         
     def fit(self, df, progress_callback=None):
-        with diag.DiagnosticTimer(f"Quantile LSTM Fitting (seq={self.seq_len}, epochs={self.epochs}, hidden={self.hidden_dim})"):
-            self.columns = list(df.columns)
-            K = len(self.columns)
+        self.columns = list(df.columns)
+        K = len(self.columns)
+        
+        # Auto-determine hidden dimension if set to 'auto'
+        if self.hidden_dim == "auto" or self.hidden_dim is None:
+            hidden_dim_val = max(16, min(64, int(2 ** np.ceil(np.log2(K * 3)))))
+            diag.log_info(f"Auto-selected hidden dimension {hidden_dim_val} for K={K} sector features.")
+        else:
+            hidden_dim_val = int(self.hidden_dim)
             
+        with diag.DiagnosticTimer(f"Quantile LSTM Fitting (seq={self.seq_len}, max_epochs={self.epochs}, hidden={hidden_dim_val})"):
             if len(df) <= self.seq_len:
                 diag.log_error(f"Length of data ({len(df)}) is too short for seq_len={self.seq_len}")
                 raise ValueError(f"Data length ({len(df)}) must be greater than sequence length (Lags={self.seq_len})")
@@ -162,7 +171,7 @@ class LSTMQuantileModel:
             input_dim = len(self.columns)
             output_dim = input_dim
             
-            self.model = LSTMNet(input_dim, self.hidden_dim, output_dim)
+            self.model = LSTMNet(input_dim, hidden_dim_val, output_dim)
             criterion = PinballLoss(self.quantile)
             optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
             
@@ -170,7 +179,10 @@ class LSTMQuantileModel:
             loader = DataLoader(dataset, batch_size=16, shuffle=True)
             
             self.model.train()
+            best_loss = float('inf')
+            no_improve_count = 0
             final_loss = 0.0
+            
             for epoch in range(self.epochs):
                 epoch_loss = 0.0
                 batch_count = 0
@@ -188,7 +200,20 @@ class LSTMQuantileModel:
                 if progress_callback:
                     progress_callback(epoch + 1, self.epochs)
                     
-            diag.log_info(f"LSTM Training finished. Final epoch loss: {final_loss:.6f}")
+                # Early stopping check
+                if self.early_stopping:
+                    if final_loss < best_loss - 1e-4:
+                        best_loss = final_loss
+                        no_improve_count = 0
+                    else:
+                        no_improve_count += 1
+                        if no_improve_count >= self.patience:
+                            diag.log_info(f"Early stopping triggered at epoch {epoch+1}/{self.epochs}. Loss converged at {best_loss:.6f}")
+                            if progress_callback:
+                                progress_callback(self.epochs, self.epochs)
+                            break
+                    
+            diag.log_info(f"LSTM Training finished. Final loss: {final_loss:.6f}")
                 
     def predict_next(self, history):
         self.model.eval()

@@ -95,13 +95,17 @@ def detect_communities(spillover_matrix, n_communities="auto"):
         similarity = similarity / max_val
         
     # Determine target communities
+    if K < 3:
+        diag.log_info(f"K={K} sectors selected. Assigning all sectors to Community 1.")
+        return pd.Series(0, index=sectors)
+
     if n_communities == "auto" or n_communities is None:
         target_communities = find_optimal_eigengap_k(similarity)
         diag.log_info(f"Eigengap Heuristic auto-detected optimal communities k={target_communities}")
     else:
         target_communities = int(n_communities)
         if target_communities >= K:
-            target_communities = max(1, K - 1)
+            target_communities = max(2, K - 1)
             diag.log_warning(f"Target communities ({n_communities}) >= K ({K}). Clamped to: {target_communities}")
         
     with diag.DiagnosticTimer(f"Spectral Clustering Community Detection (target={target_communities})"):
