@@ -412,14 +412,18 @@ with tab_network:
             
             if comm_mode == "Manual Choice":
                 max_communities = max(2, len(selected_sectors) - 1)
-                default_comm_val = min(3, max_communities)
-                n_comm = st.slider(
-                    "Target Communities", 
-                    min_value=2, 
-                    max_value=max_communities, 
-                    value=default_comm_val,
-                    help="Groups sectors via Spectral Clustering."
-                )
+                if max_communities > 2:
+                    default_comm_val = min(3, max_communities)
+                    n_comm = st.slider(
+                        "Target Communities", 
+                        min_value=2, 
+                        max_value=max_communities, 
+                        value=default_comm_val,
+                        help="Groups sectors via Spectral Clustering."
+                    )
+                else:
+                    n_comm = 2
+                    st.info(f"Target Communities set to {n_comm} for {len(selected_sectors)} selected sectors.")
             else:
                 n_comm = "auto"
             
