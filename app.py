@@ -378,7 +378,10 @@ with tab_spillover:
         display_spill = pd.concat([display_spill, pd.DataFrame([from_row])])
         display_spill.loc["FROM OTHERS", "TO OTHERS"] = metrics["TCI"]
         
-        st.dataframe(display_spill.style.format("{:.2f}%").background_gradient(cmap="Reds", subset=(spill_df.index, spill_df.columns)), use_container_width=True)
+        try:
+            st.dataframe(display_spill.style.format("{:.2f}%").background_gradient(cmap="Reds", subset=(spill_df.index, spill_df.columns)), use_container_width=True)
+        except Exception:
+            st.dataframe(display_spill.style.format("{:.2f}%"), use_container_width=True)
         st.caption("Rows represent receiving sectors (FROM); columns represent transmitting sectors (TO). Diagonal represents self-spillover.")
 
 # =====================================================================
