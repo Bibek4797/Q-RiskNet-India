@@ -7,6 +7,15 @@ from .distribution import compute_distribution_metrics, get_kde_comparison, run_
 from .nonlinearity import run_bds_test, run_full_nonlinearity_suite
 from .structural_breaks import run_cusum_break_test, run_full_structural_breaks_suite
 from .diagnostics_runner import run_all_econometric_diagnostics
+from .volatility import (
+    fit_arch_model,
+    fit_garch_model,
+    fit_egarch_model,
+    fit_gjr_garch_model,
+    compare_volatility_models_for_sector,
+    generate_multi_step_volatility_forecast
+)
+from .volatility_runner import run_all_volatility_models
 
 __all__ = [
     "estimate_garch_volatility",
@@ -29,5 +38,12 @@ __all__ = [
     "run_full_nonlinearity_suite",
     "run_cusum_break_test",
     "run_full_structural_breaks_suite",
-    "run_all_econometric_diagnostics"
+    "run_all_econometric_diagnostics",
+    "fit_arch_model",
+    "fit_garch_model",
+    "fit_egarch_model",
+    "fit_gjr_garch_model",
+    "compare_volatility_models_for_sector",
+    "generate_multi_step_volatility_forecast",
+    "run_all_volatility_models"
 ]

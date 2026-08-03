@@ -12,6 +12,8 @@ import src.data.pipeline as pipe
 import src.econometrics.stats as stats
 import src.econometrics.garch as garch
 import src.econometrics.diagnostics_runner as diag_runner
+import src.econometrics.volatility_runner as vol_runner
+import src.econometrics.volatility as vol_mod
 import src.econometrics.autocorr as autocorr
 import src.econometrics.hetero as hetero
 import src.econometrics.distribution as dist_mod
@@ -29,6 +31,7 @@ from dashboard.components.charts import (
     render_prices_chart,
     render_drawdowns_chart,
     render_rolling_volatility_chart,
+    render_conditional_volatility_chart,
     render_acf_pacf_chart,
     render_kde_comparison_chart,
     render_rolling_variance_chart,
@@ -49,6 +52,8 @@ if 'pipeline_output' not in st.session_state:
     st.session_state['pipeline_output'] = None
 if 'diag_output' not in st.session_state:
     st.session_state['diag_output'] = None
+if 'vol_output' not in st.session_state:
+    st.session_state['vol_output'] = None
 if 'spillover_df' not in st.session_state:
     st.session_state['spillover_df'] = None
 if 'metrics' not in st.session_state:
@@ -60,11 +65,12 @@ cfg = render_sidebar()
 # Render Application Banner Header
 render_header()
 
-# Create 5 Core Tabs
-tab_data, tab_diag, tab_spillover, tab_network, tab_rolling = st.tabs([
+# Create 6 Core Tabs
+tab_data, tab_diag, tab_vol, tab_spillover, tab_network, tab_rolling = st.tabs([
     "📊 Data Center & Pipeline", 
     "🔬 Econometric Diagnostics",
-    "📈 Volatility Spillover", 
+    "📈 Volatility Modelling",
+    "🌊 Volatility Spillover", 
     "🕸️ Network Topology", 
     "🕒 Dynamic TCI"
 ])
@@ -84,6 +90,11 @@ def execute_pipeline(sectors, start, end):
 def execute_diagnostics(returns_df):
     return diag_runner.run_all_econometric_diagnostics(returns_df, save_reports=True)
 
+# Run Volatility Modelling Suite
+@st.cache_data(show_spinner="Fitting GARCH Family Volatility Models...")
+def execute_volatility_models(returns_df):
+    return vol_runner.run_all_volatility_models(returns_df, save_reports=True)
+
 pipeline_res = None
 try:
     pipeline_res = execute_pipeline(tuple(selected_sectors), cfg["start_date"], cfg["end_date"])
@@ -96,6 +107,9 @@ try:
     diag_res = execute_diagnostics(returns_df)
     st.session_state['diag_output'] = diag_res
 
+    vol_res = execute_volatility_models(returns_df)
+    st.session_state['vol_output'] = vol_res
+
     if cfg["volatility_proxy"] == "GARCH(1,1) Volatility":
         garch_cols = {}
         for col in returns_df.columns:
@@ -105,8 +119,8 @@ try:
         model_input = returns_df.copy()
 
 except Exception as e:
-    diag.log_error("Data pipeline / diagnostics failure", e)
-    st.error(f"❌ Error in Data Pipeline / Diagnostics: {str(e)}")
+    diag.log_error("Data pipeline / volatility fitting failure", e)
+    st.error(f"❌ Error in Pipeline / Volatility Modelling: {str(e)}")
     st.info("💡 Try selecting different sectors, widening the date range, or picking fewer indices.")
     st.stop()
 
@@ -209,9 +223,60 @@ with tab_diag:
             st.markdown("#### OLS CUSUM Parameter Stability Test")
             st.dataframe(diag_res["structural_breaks"], use_container_width=True)
 
-# TAB 3: VOLATILITY SPILLOVER
+# TAB 3: ENTERPRISE VOLATILITY MODELLING (GARCH FAMILY)
+with tab_vol:
+    st.subheader("📈 Enterprise Volatility Modelling & Asymmetry Analysis")
+    st.markdown("""
+    Comparative estimation of **ARCH(1)**, **GARCH(1,1)**, **EGARCH(1,1,1)**, and **GJR-GARCH(1,1,1)** models.
+    Evaluates conditional volatility, volatility persistence, shock half-life (days), and asymmetric leverage dynamics.
+    """)
+
+    vol_target_sector = st.selectbox("Select Sector for Volatility Modelling", options=list(returns_df.columns), key="vol_sec_select")
+    
+    if vol_target_sector:
+        st.markdown(f"### Model Comparison & Goodness of Fit for **{vol_target_sector}**")
+        sector_vol_df = vol_runner.compare_volatility_models_for_sector(returns_df[vol_target_sector])
+        display_vol_df = sector_vol_df.drop(columns=["fit_result"], errors="ignore")
+        st.dataframe(display_vol_df, use_container_width=True)
+        st.caption("Sorted by Akaike Information Criterion (AIC). Lower AIC / BIC indicated superior parsimonious fit.")
+
+        selected_model_name = st.radio(
+            "Select Model to Inspect Envelopes & Forecasts", 
+            options=list(sector_vol_df["Model"].values),
+            horizontal=True
+        )
+
+        model_row = sector_vol_df[sector_vol_df["Model"] == selected_model_name].iloc[0]
+        res_obj = model_row["fit_result"]
+
+        # Conditional Volatility Envelopes Plot
+        cond_vol = res_obj.conditional_volatility / (res_obj.scale if res_obj.scale else 1.0)
+        render_conditional_volatility_chart(returns_df[vol_target_sector], cond_vol, selected_model_name)
+
+        # Multi-Step Forecast Table
+        col_fc1, col_fc2 = st.columns(2)
+        with col_fc1:
+            st.markdown("#### Multi-Step Ahead Volatility Forecasts")
+            fc_dict = vol_mod.generate_multi_step_volatility_forecast(res_obj, horizons=[1, 5, 20])
+            fc_table = pd.DataFrame([
+                {"Horizon": "1-Day Ahead (t+1)", "Annualized_Vol_Pct": f"{fc_dict['Forecast_1d_Vol_Pct']:.2f}%"},
+                {"Horizon": "5-Day Ahead (t+5)", "Annualized_Vol_Pct": f"{fc_dict['Forecast_5d_Vol_Pct']:.2f}%"},
+                {"Horizon": "20-Day Ahead (t+20)", "Annualized_Vol_Pct": f"{fc_dict['Forecast_20d_Vol_Pct']:.2f}%"}
+            ])
+            st.table(fc_table)
+
+        with col_fc2:
+            st.markdown("#### Model Parameter & Persistence Metrics")
+            st.write({
+                "Persistence (P)": f"{model_row['Persistence']:.4f}",
+                "Half-Life (Days)": f"{model_row['Half_Life_Days']:.1f} days",
+                "Long-Run Unconditional Vol": f"{model_row['Long_Run_Vol_Pct']:.2f}%",
+                "Asymmetry Gamma (γ)": f"{model_row['Gamma_Asymmetry']}"
+            })
+
+# TAB 4: VOLATILITY SPILLOVER
 with tab_spillover:
-    st.subheader(f"📈 Risk Spillover Analysis ({cfg['model_choice']} at Quantile τ={cfg['quantile']:.2f})")
+    st.subheader(f"🌊 Risk Spillover Analysis ({cfg['model_choice']} at Quantile τ={cfg['quantile']:.2f})")
     
     run_model_btn = st.button("🚀 Calculate Risk Spillovers & Connectedness", type="primary")
     
@@ -259,7 +324,7 @@ with tab_spillover:
         st.subheader("Diebold-Yilmaz Spillover Matrix (%)")
         render_spillover_matrix_table(spill_df, metrics)
 
-# TAB 4: NETWORK TOPOLOGY & CLUSTERS
+# TAB 5: NETWORK TOPOLOGY & CLUSTERS
 with tab_network:
     if st.session_state['spillover_df'] is None:
         st.info("Please calculate connectedness metrics in the 'Volatility Spillover' tab first.")
@@ -302,7 +367,7 @@ with tab_network:
             diag.log_error("MST generation failure", e)
             st.error(f"Error drawing MST: {str(e)}")
 
-# TAB 5: DYNAMIC TCI
+# TAB 6: DYNAMIC TCI
 with tab_rolling:
     st.subheader("🕒 Dynamic Time-Varying Total Connectedness Index (TCI)")
     

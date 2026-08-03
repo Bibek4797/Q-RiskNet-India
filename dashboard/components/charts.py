@@ -49,6 +49,42 @@ def render_rolling_volatility_chart(vol_df, window_label="20-Day"):
     fig_vol.update_layout(template="plotly_dark", height=400)
     st.plotly_chart(fig_vol, use_container_width=True)
 
+def render_conditional_volatility_chart(returns_series, cond_vol_series, model_name):
+    """
+    Overlays return series with ±2σ conditional volatility bands.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=returns_series.index,
+        y=returns_series.values,
+        mode='lines',
+        name='Daily Return (%)',
+        line=dict(color='#64748b', width=1),
+        opacity=0.6
+    ))
+    fig.add_trace(go.Scatter(
+        x=cond_vol_series.index,
+        y=2.0 * cond_vol_series.values,
+        mode='lines',
+        name='+2σ Upper Volatility Band',
+        line=dict(color='#ef4444', width=1.8, dash='dash')
+    ))
+    fig.add_trace(go.Scatter(
+        x=cond_vol_series.index,
+        y=-2.0 * cond_vol_series.values,
+        mode='lines',
+        name='-2σ Lower Volatility Band',
+        line=dict(color='#ef4444', width=1.8, dash='dash')
+    ))
+    fig.update_layout(
+        title=f"Conditional Volatility Envelopes (±2σ) - {model_name} ({returns_series.name})",
+        xaxis_title="Date",
+        yaxis_title="Return (%) / Volatility",
+        template="plotly_dark",
+        height=450
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
 def render_acf_pacf_chart(lags, acf_vals, pacf_vals, sector_name):
     """
     Renders ACF and PACF bar charts.
