@@ -131,6 +131,7 @@ def compare_volatility_models_for_sector(returns_series):
 def generate_multi_step_volatility_forecast(res_object, horizons=[1, 5, 20]):
     """
     Generates multi-step ahead conditional volatility forecasts (annualized %).
+    Supports simulation / bootstrap fallback for EGARCH models when horizon > 1.
     """
     res = res_object
     scale = res.scale if res.scale else 1.0
@@ -138,7 +139,14 @@ def generate_multi_step_volatility_forecast(res_object, horizons=[1, 5, 20]):
         scale = 1.0
 
     max_h = max(horizons)
-    fc = res.forecast(horizon=max_h)
+    try:
+        fc = res.forecast(horizon=max_h, method='analytic')
+    except Exception:
+        try:
+            fc = res.forecast(horizon=max_h, method='simulation', simulations=500)
+        except Exception:
+            fc = res.forecast(horizon=max_h, method='bootstrap')
+
     variance_forecasts = fc.variance.iloc[-1].values / scale
 
     forecast_dict = {}
