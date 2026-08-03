@@ -1,6 +1,7 @@
 import sys
 import os
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 # Add root directory to python path for modular imports
@@ -18,6 +19,7 @@ import src.econometrics.autocorr as autocorr
 import src.econometrics.hetero as hetero
 import src.econometrics.distribution as dist_mod
 import src.models.qvar as qvar
+import src.models.qvar_runner as qvar_runner
 import src.models.quantile_lstm as qlstm
 import src.forecasting.girf as girf
 import src.network.mst as mst
@@ -32,6 +34,8 @@ from dashboard.components.charts import (
     render_drawdowns_chart,
     render_rolling_volatility_chart,
     render_conditional_volatility_chart,
+    render_qvar_heatmap,
+    render_qvar_girf_chart,
     render_acf_pacf_chart,
     render_kde_comparison_chart,
     render_rolling_variance_chart,
@@ -54,6 +58,8 @@ if 'diag_output' not in st.session_state:
     st.session_state['diag_output'] = None
 if 'vol_output' not in st.session_state:
     st.session_state['vol_output'] = None
+if 'qvar_output' not in st.session_state:
+    st.session_state['qvar_output'] = None
 if 'spillover_df' not in st.session_state:
     st.session_state['spillover_df'] = None
 if 'metrics' not in st.session_state:
@@ -65,11 +71,12 @@ cfg = render_sidebar()
 # Render Application Banner Header
 render_header()
 
-# Create 6 Core Tabs
-tab_data, tab_diag, tab_vol, tab_spillover, tab_network, tab_rolling = st.tabs([
+# Create 7 Core Tabs
+tab_data, tab_diag, tab_vol, tab_qvar, tab_spillover, tab_network, tab_rolling = st.tabs([
     "📊 Data Center & Pipeline", 
     "🔬 Econometric Diagnostics",
     "📈 Volatility Modelling",
+    "📊 QVAR Analysis",
     "🌊 Volatility Spillover", 
     "🕸️ Network Topology", 
     "🕒 Dynamic TCI"
@@ -95,6 +102,11 @@ def execute_diagnostics(returns_df):
 def execute_volatility_models(returns_df):
     return vol_runner.run_all_volatility_models(returns_df, save_reports=True)
 
+# Run QVAR Analysis Suite
+@st.cache_data(show_spinner="Fitting Multi-Quantile QVAR Models...")
+def execute_qvar_suite(returns_df, p_lag):
+    return qvar_runner.run_all_qvar_diagnostics(returns_df, p=p_lag, quantiles=[0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95], save_reports=True)
+
 pipeline_res = None
 try:
     pipeline_res = execute_pipeline(tuple(selected_sectors), cfg["start_date"], cfg["end_date"])
@@ -110,6 +122,9 @@ try:
     vol_res = execute_volatility_models(returns_df)
     st.session_state['vol_output'] = vol_res
 
+    qvar_res = execute_qvar_suite(returns_df, cfg["lags"])
+    st.session_state['qvar_output'] = qvar_res
+
     if cfg["volatility_proxy"] == "GARCH(1,1) Volatility":
         garch_cols = {}
         for col in returns_df.columns:
@@ -119,8 +134,8 @@ try:
         model_input = returns_df.copy()
 
 except Exception as e:
-    diag.log_error("Data pipeline / volatility fitting failure", e)
-    st.error(f"❌ Error in Pipeline / Volatility Modelling: {str(e)}")
+    diag.log_error("Data pipeline / QVAR fitting failure", e)
+    st.error(f"❌ Error in Pipeline / QVAR Modelling: {str(e)}")
     st.info("💡 Try selecting different sectors, widening the date range, or picking fewer indices.")
     st.stop()
 
@@ -249,11 +264,9 @@ with tab_vol:
         model_row = sector_vol_df[sector_vol_df["Model"] == selected_model_name].iloc[0]
         res_obj = model_row["fit_result"]
 
-        # Conditional Volatility Envelopes Plot
         cond_vol = res_obj.conditional_volatility / (res_obj.scale if res_obj.scale else 1.0)
         render_conditional_volatility_chart(returns_df[vol_target_sector], cond_vol, selected_model_name)
 
-        # Multi-Step Forecast Table
         col_fc1, col_fc2 = st.columns(2)
         with col_fc1:
             st.markdown("#### Multi-Step Ahead Volatility Forecasts")
@@ -274,7 +287,63 @@ with tab_vol:
                 "Asymmetry Gamma (γ)": f"{model_row['Gamma_Asymmetry']}"
             })
 
-# TAB 4: VOLATILITY SPILLOVER
+# TAB 4: QUANTILE VECTOR AUTOREGRESSION (QVAR)
+with tab_qvar:
+    st.subheader("📊 Quantile Vector Autoregression (QVAR) Framework")
+    st.markdown("""
+    Evaluates cross-sector dependence structures across **extreme bearish ($\tau=0.05$)**, **normal ($\tau=0.50$)**, and **bullish ($\tau=0.95$)** market regimes.
+    """)
+
+    models_dict = qvar_res["models_dict"]
+    summary_df = qvar_res["summary_df"]
+
+    col_q1, col_q2 = st.columns([1, 2])
+    with col_q1:
+        st.markdown("#### QVAR Model Controls")
+        selected_q = st.select_slider(
+            "Select Quantile (τ)", 
+            options=[0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95], 
+            value=0.05
+        )
+        regime_label = "Extreme Bearish (Crash)" if selected_q <= 0.10 else ("Median (Normal)" if selected_q == 0.50 else "Bullish (Rally)")
+        st.info(f"Active Regime: **{regime_label}**")
+
+    with col_q2:
+        q_model = models_dict.get(selected_q)
+        if q_model:
+            coeff_mat = q_model.get_coefficient_matrix(lag=1)
+            render_qvar_heatmap(coeff_mat, selected_q)
+
+    st.markdown("---")
+    st.subheader("🌀 Coefficient Stability Across Quantiles")
+    
+    col_pair1, col_pair2 = st.columns(2)
+    with col_pair1:
+        target_sec_q = st.selectbox("Select Target Sector (Response)", options=list(returns_df.columns), key="t_sec_q")
+    with col_pair2:
+        source_sec_q = st.selectbox("Select Source Sector (Impulse)", options=list(returns_df.columns), key="s_sec_q")
+
+    if target_sec_q and source_sec_q:
+        pair_df = summary_df[(summary_df["Target_Sector"] == target_sec_q) & (summary_df["Source_Sector"] == source_sec_q)]
+        fig_stab = px.line(
+            pair_df,
+            x="Quantile",
+            y="Coefficient",
+            markers=True,
+            title=f"Autoregressive Coefficient Φ₁({target_sec_q} ← {source_sec_q}) Across Quantiles τ",
+            labels={"Quantile": "Quantile (τ)", "Coefficient": "Coefficient Value"}
+        )
+        fig_stab.update_layout(template="plotly_dark", height=380)
+        st.plotly_chart(fig_stab, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader("⚡ Generalized Impulse Response Functions (GIRF)")
+    shock_sec = st.selectbox("Select Shock Origin Sector for GIRF Simulation", options=list(returns_df.columns), key="girf_sec")
+    if shock_sec and q_model:
+        girf_sim = qvar.compute_qvar_girf(q_model, returns_df, shocked_sector=shock_sec, shock_size_std=2.0, horizon=10)
+        render_qvar_girf_chart(girf_sim, shock_sec, selected_q)
+
+# TAB 5: VOLATILITY SPILLOVER
 with tab_spillover:
     st.subheader(f"🌊 Risk Spillover Analysis ({cfg['model_choice']} at Quantile τ={cfg['quantile']:.2f})")
     
@@ -324,7 +393,7 @@ with tab_spillover:
         st.subheader("Diebold-Yilmaz Spillover Matrix (%)")
         render_spillover_matrix_table(spill_df, metrics)
 
-# TAB 5: NETWORK TOPOLOGY & CLUSTERS
+# TAB 6: NETWORK TOPOLOGY & CLUSTERS
 with tab_network:
     if st.session_state['spillover_df'] is None:
         st.info("Please calculate connectedness metrics in the 'Volatility Spillover' tab first.")
@@ -367,7 +436,7 @@ with tab_network:
             diag.log_error("MST generation failure", e)
             st.error(f"Error drawing MST: {str(e)}")
 
-# TAB 6: DYNAMIC TCI
+# TAB 7: DYNAMIC TCI
 with tab_rolling:
     st.subheader("🕒 Dynamic Time-Varying Total Connectedness Index (TCI)")
     

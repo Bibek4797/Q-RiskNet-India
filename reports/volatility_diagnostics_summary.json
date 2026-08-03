@@ -1,0 +1,8 @@
+{
+    "total_sectors": 2,
+    "preferred_model_distribution": {
+        "EGARCH(1,1,1)": 2
+    },
+    "average_persistence": 0.23493750000000002,
+    "average_half_life_days": 0.5957142857142858
+}

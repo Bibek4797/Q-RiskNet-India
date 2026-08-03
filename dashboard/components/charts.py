@@ -85,6 +85,34 @@ def render_conditional_volatility_chart(returns_series, cond_vol_series, model_n
     )
     st.plotly_chart(fig, use_container_width=True)
 
+def render_qvar_heatmap(coeff_matrix, quantile_val):
+    """
+    Renders QVAR Autoregressive Coefficient Matrix Heatmap.
+    """
+    fig = px.imshow(
+        coeff_matrix,
+        text_auto=".3f",
+        aspect="auto",
+        color_continuous_scale="RdBu_r",
+        title=f"QVAR Coefficient Matrix Φ₁(τ={quantile_val:.2f}) [Row=Target, Col=Source]"
+    )
+    fig.update_layout(template="plotly_dark", height=420)
+    st.plotly_chart(fig, use_container_width=True)
+
+def render_qvar_girf_chart(girf_df, shocked_sector, quantile_val):
+    """
+    Renders Generalized Impulse Response Function (GIRF) curves.
+    """
+    fig = px.line(
+        girf_df,
+        x=girf_df.index,
+        y=girf_df.columns,
+        title=f"QVAR Generalized Impulse Responses (GIRF, τ={quantile_val:.2f}) to +2σ Shock in {shocked_sector}",
+        labels={"x": "Horizon (Days)", "value": "Response (%)", "variable": "Sector"}
+    )
+    fig.update_layout(template="plotly_dark", height=420)
+    st.plotly_chart(fig, use_container_width=True)
+
 def render_acf_pacf_chart(lags, acf_vals, pacf_vals, sector_name):
     """
     Renders ACF and PACF bar charts.

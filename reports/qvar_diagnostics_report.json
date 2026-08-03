@@ -1,0 +1,11 @@
+{
+    "total_sectors": 2,
+    "lags_p": 2,
+    "quantiles": [
+        0.05,
+        0.5,
+        0.95
+    ],
+    "total_estimated_parameters": 12,
+    "bear_vs_bull_coef_diff_mean": -0.3287424492977245
+}
