@@ -1,0 +1,8 @@
+{
+    "target_sector": "Bank",
+    "eval_observations": 17,
+    "best_performing_model": "ARIMA(1,0,1)",
+    "best_model_rmse": 0.9096,
+    "best_model_directional_accuracy": 52.94,
+    "naive_random_walk_rmse": 0.943
+}

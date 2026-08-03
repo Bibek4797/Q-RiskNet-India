@@ -85,6 +85,35 @@ def render_conditional_volatility_chart(returns_series, cond_vol_series, model_n
     )
     st.plotly_chart(fig, use_container_width=True)
 
+def render_forecast_benchmark_chart(preds_df, target_sector):
+    """
+    Renders Out-of-Sample actual returns vs model predictions line plot.
+    """
+    fig = px.line(
+        preds_df,
+        x=preds_df.index,
+        y=preds_df.columns,
+        title=f"Out-of-Sample Forecast Predictions Benchmark ({target_sector})",
+        labels={"value": "Daily Log Return (%)", "variable": "Model / Actual"}
+    )
+    fig.update_layout(template="plotly_dark", height=450)
+    st.plotly_chart(fig, use_container_width=True)
+
+def render_feature_importance_chart(feat_series, title_str):
+    """
+    Renders Feature Importance bar chart.
+    """
+    top_feats = feat_series.sort_values(ascending=True).tail(10)
+    fig = px.bar(
+        x=top_feats.values,
+        y=top_feats.index,
+        orientation='h',
+        title=title_str,
+        labels={"x": "Gini Importance", "y": "Lagged Feature"}
+    )
+    fig.update_layout(template="plotly_dark", height=380)
+    st.plotly_chart(fig, use_container_width=True)
+
 def render_qvar_heatmap(coeff_matrix, quantile_val):
     """
     Renders QVAR Autoregressive Coefficient Matrix Heatmap.

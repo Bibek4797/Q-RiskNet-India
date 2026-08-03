@@ -23,6 +23,8 @@ import src.models.qvar_runner as qvar_runner
 import src.models.quantile_lstm as qlstm
 import src.forecasting.girf as girf
 import src.forecasting.connectedness_runner as conn_runner
+import src.forecasting.evaluator as forecast_eval
+import src.forecasting.benchmarks as fc_bm
 import src.network.mst as mst
 import src.network.spectral as spectral
 import src.network.centrality as centrality
@@ -37,6 +39,8 @@ from dashboard.components.charts import (
     render_drawdowns_chart,
     render_rolling_volatility_chart,
     render_conditional_volatility_chart,
+    render_forecast_benchmark_chart,
+    render_feature_importance_chart,
     render_qvar_heatmap,
     render_qvar_girf_chart,
     render_acf_pacf_chart,
@@ -63,6 +67,8 @@ if 'vol_output' not in st.session_state:
     st.session_state['vol_output'] = None
 if 'qvar_output' not in st.session_state:
     st.session_state['qvar_output'] = None
+if 'fc_output' not in st.session_state:
+    st.session_state['fc_output'] = None
 if 'spillover_df' not in st.session_state:
     st.session_state['spillover_df'] = None
 if 'metrics' not in st.session_state:
@@ -74,12 +80,13 @@ cfg = render_sidebar()
 # Render Application Banner Header
 render_header()
 
-# Create 7 Core Tabs
-tab_data, tab_diag, tab_vol, tab_qvar, tab_spillover, tab_network, tab_rolling = st.tabs([
+# Create 8 Core Tabs
+tab_data, tab_diag, tab_vol, tab_qvar, tab_fc, tab_spillover, tab_network, tab_rolling = st.tabs([
     "📊 Data Center & Pipeline", 
     "🔬 Econometric Diagnostics",
     "📈 Volatility Modelling",
     "📊 QVAR Analysis",
+    "🔮 Forecasting Benchmark",
     "🌊 Volatility Spillover", 
     "🕸️ Network Topology", 
     "🕒 Dynamic TCI"
@@ -346,7 +353,44 @@ with tab_qvar:
         girf_sim = qvar.compute_qvar_girf(q_model, returns_df, shocked_sector=shock_sec, shock_size_std=2.0, horizon=10)
         render_qvar_girf_chart(girf_sim, shock_sec, selected_q)
 
-# TAB 5: VOLATILITY SPILLOVER
+# TAB 5: FORECASTING BENCHMARK & PREDICTIVE MODELLING
+with tab_fc:
+    st.subheader("🔮 Out-of-Sample Forecasting Benchmark & Evaluation")
+    st.markdown("""
+    Evaluates **Classical Econometrics (Random Walk, Historical Mean, ARIMA)**, **Machine Learning (Random Forest, Gradient Boosting, SVR)**, and **Deep Learning (Quantile LSTM)**.
+    """)
+
+    fc_target_sector = st.selectbox("Select Target Sector for Forecasting Evaluation", options=list(returns_df.columns), key="fc_sec_target")
+
+    run_fc_btn = st.button("🚀 Run Forecasting Benchmark Suite", type="primary")
+
+    if run_fc_btn or st.session_state['fc_output'] is not None:
+        if run_fc_btn:
+            try:
+                fc_res = forecast_eval.run_all_forecast_benchmarks(returns_df, target_sector=fc_target_sector, train_ratio=0.80, save_reports=True)
+                st.session_state['fc_output'] = fc_res
+            except Exception as e:
+                diag.log_error("Forecasting benchmark execution failed", e)
+                st.error(f"Error executing forecasting benchmarks: {str(e)}")
+
+        fc_data = st.session_state['fc_output']
+        if fc_data:
+            summary_df = fc_data["summary_df"]
+            preds_df = fc_data["predictions_df"]
+            dm_df = fc_data["dm_df"]
+
+            st.markdown("#### Out-of-Sample Benchmark Performance Summary")
+            st.dataframe(summary_df, use_container_width=True)
+            st.caption("Sorted by Root Mean Squared Error (RMSE). Lower RMSE & MAE indicated superior out-of-sample prediction accuracy.")
+
+            render_forecast_benchmark_chart(preds_df, fc_target_sector)
+
+            st.markdown("---")
+            st.markdown("#### Diebold-Mariano Test for Statistical Superiority vs Naive Random Walk")
+            st.dataframe(dm_df, use_container_width=True)
+            st.caption("DM_p_Value <= 0.05 indicates model statistically significantly outperforms Naive Random Walk benchmark.")
+
+# TAB 6: VOLATILITY SPILLOVER
 with tab_spillover:
     st.subheader(f"🌊 Risk Spillover Analysis ({cfg['model_choice']} at Quantile τ={cfg['quantile']:.2f})")
     
@@ -396,7 +440,7 @@ with tab_spillover:
         st.subheader("Diebold-Yilmaz Spillover Matrix (%)")
         render_spillover_matrix_table(spill_df, metrics)
 
-# TAB 6: FINANCIAL NETWORK SCIENCE & SYSTEMIC TOPOLOGY
+# TAB 7: FINANCIAL NETWORK SCIENCE & SYSTEMIC TOPOLOGY
 with tab_network:
     if st.session_state['spillover_df'] is None:
         st.info("Please calculate connectedness metrics in the 'Volatility Spillover' tab first.")
@@ -463,7 +507,7 @@ with tab_network:
             diag.log_error("MST generation failure", e)
             st.error(f"Error drawing MST: {str(e)}")
 
-# TAB 7: DYNAMIC TCI
+# TAB 8: DYNAMIC TCI
 with tab_rolling:
     st.subheader("🕒 Dynamic Time-Varying Total Connectedness Index (TCI)")
     
