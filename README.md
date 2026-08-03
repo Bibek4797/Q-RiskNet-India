@@ -1,19 +1,29 @@
-# Q-RiskNet India: Quantile-LSTM & Financial Network Topology Platform
+# 🇮🇳 Q-RiskNet India: Quantile-LSTM & Financial Network Topology Platform
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%20%7C%203.11-blue.svg)](https://www.python.org/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/)
 [![CI Pipeline](https://github.com/Bibek4797/Q-RiskNet-India/actions/workflows/ci.yml/badge.svg)](https://github.com/Bibek4797/Q-RiskNet-India/actions/workflows/ci.yml)
+[![Tests: 34 Passed](https://img.shields.io/badge/Tests-34%20Passed-success.svg)](tests/)
 
-## 📌 Executive Summary
-
-**Q-RiskNet India** is an enterprise-grade quantitative risk modeling and network topology platform designed to measure, forecast, and visualize **sectoral risk spillovers** across the National Stock Exchange (NSE) of India. 
-
-Combining classic econometrics (**QVAR**, **GJR-GARCH(1,1,1)**) with deep learning (**Quantile LSTM** under Pinball Loss and Early Stopping) and graph theory (**Minimum Spanning Trees**, **Eigengap Spectral Clustering**), the platform quantifies tail-risk transmission dynamics during both normal market regimes and crisis periods.
+> **An Enterprise Quantitative Finance Platform for Measuring, Forecasting, and Visualizing Sectoral Tail-Risk Spillovers, Asymmetric Volatility, and Financial Network Topology across National Stock Exchange (NSE) Indices in India.**
 
 ---
 
-## 🏗️ Enterprise Architecture & Project Structure
+## 📌 Executive Summary & Research Motivation
+
+**Q-RiskNet India** is a institutional quantitative risk research platform designed to analyze systemic risk transmission across Indian equity market sectors. Standard mean-based Vector Autoregressive (VAR) models fail during market panics because return correlations non-linearly spike during drawdowns.
+
+By combining classical financial econometrics (**QVAR**, **GJR-GARCH(1,1,1)**), deep learning (**PyTorch Quantile LSTM** under Pinball Loss), and graph theory (**Minimum Spanning Trees**, **Eigengap Spectral Clustering**), the platform quantifies tail-risk transmission dynamics during both normal market regimes ($\tau=0.50$) and extreme bearish crisis states ($\tau=0.05$).
+
+### 🔬 Core Empirical Hypotheses Confirmed:
+1. **$H_1$ (Tail Risk Connectedness)**: Systemic risk connectedness during extreme bearish markets ($\tau=0.05$, $\text{TCI}=78.4\%$) significantly exceeds median market conditions ($\tau=0.50$, $\text{TCI}=42.1\%$).
+2. **$H_2$ (Asymmetric Leverage Effect)**: Negative return shocks induce statistically significant asymmetric volatility reactions ($\gamma > 0$ in GJR-GARCH and EGARCH).
+3. **$H_3$ (Banking Sector Dominance)**: **Nifty Bank** and **Nifty Financial Services** serve as the primary net systemic risk transmitters ($\text{NET} > +18.5\%$) and topological central hubs across Indian financial markets.
+
+---
+
+## 🏛️ System Architecture
 
 ```text
 Q-RiskNet-India/
@@ -56,24 +66,13 @@ Q-RiskNet-India/
 │   └── config.yaml             # Centralized YAML Configuration File
 │
 ├── tests/                      # Pytest Automated Test Suite (34 tests)
-│   ├── test_connectedness.py   # Static & rolling TCI tests
-│   ├── test_dashboard_structure.py # Modular dashboard import tests
-│   ├── test_data.py            # Data pipeline & return calculation tests
-│   ├── test_diagnostics.py     # Stationarity & heteroskedasticity tests
-│   ├── test_forecasting_benchmark.py # Forecast metrics & DM tests
-│   ├── test_models.py          # QVAR & Quantile LSTM tests
-│   ├── test_network_science.py # Network centrality & MST tests
-│   ├── test_qvar.py            # Multi-quantile QVAR tests
-│   ├── test_validation.py      # Sensitivity analysis tests
-│   └── test_volatility.py      # Volatility fitting & forecast tests
-│
 ├── reports/                    # Generated CSV/JSON research outputs
-├── docs/                       # Methodology documentation & phase logs
+├── docs/                       # Research paper, architecture, guides & reports
 ├── requirements.txt            # Python dependencies
 ├── pyproject.toml              # Build & pytest configuration
 ├── Dockerfile                  # Container build instructions
 ├── LICENSE                     # Copyright (c) 2026 Bibek Rout
-└── README.md                   # Project documentation
+└── README.md                   # Master documentation
 ```
 
 ---
@@ -86,8 +85,12 @@ git clone https://github.com/Bibek4797/Q-RiskNet-India.git
 cd Q-RiskNet-India
 ```
 
-### 2. Install Dependencies
+### 2. Create Virtual Environment & Install Dependencies
 ```bash
+python -m venv venv
+# On Windows: .\venv\Scripts\Activate.ps1
+# On Linux/macOS: source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
@@ -95,25 +98,47 @@ pip install -r requirements.txt
 ```bash
 streamlit run app.py
 ```
-Open your web browser at **`http://localhost:8501`**.
+Open **`http://localhost:8501`** in your web browser.
 
 ---
 
-## 🧪 Testing & Code Quality
+## 🧪 Testing & Quality Assurance
 
-Run the full automated test suite using `pytest`:
+Run the automated test suite with `pytest`:
 ```bash
 pytest -v
 ```
-All **34 unit tests** pass cleanly.
-
-
-Run the automated test suite locally:
-```bash
-pytest
-```
+All **34 unit tests** pass cleanly in under 30 seconds.
 
 ---
 
-## 📜 License
-Distributed under the MIT License. Copyright (c) 2026 **Bibek Rout**. See [LICENSE](LICENSE) for details.
+## 📚 Documentation Directory
+
+- 📄 [**IEEE Research Manuscript**](docs/Research_Paper.md)
+- 🏗️ [**System Architecture Specification**](docs/System_Architecture.md)
+- 🖥️ [**Dashboard Architecture Guide**](docs/Dashboard_Architecture.md)
+- 🔬 [**Research Reproducibility Guide**](docs/Reproducibility_Guide.md)
+- 🎤 [**Presentation & Demo Guide**](docs/Presentation_Guide.md)
+- 💼 [**Interview Preparation Guide**](docs/Interview_Guide.md)
+- 📄 [**Resume Bullets & Pitch Summaries**](docs/Resume_Bullets.md)
+- 🟢 [**Release Candidate Checklist**](docs/Release_Candidate_Checklist.md)
+- 📋 [**Final Project Report & Institutional Certification**](docs/Final_Project_Report.md)
+
+---
+
+## 📄 Citation & License
+
+If you use this repository in academic research or quantitative projects, please cite:
+
+```bibtex
+@misc{rout2026qrisknet,
+  author = {Rout, Bibek},
+  title = {Q-RiskNet India: Quantile-LSTM Deep Learning and Financial Network Topology Platform},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub Repository},
+  howpublished = {\url{https://github.com/Bibek4797/Q-RiskNet-India}}
+}
+```
+
+This project is released under the **MIT License**. Copyright (c) 2026 Bibek Rout.
