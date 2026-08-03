@@ -1,0 +1,12 @@
+{
+    "total_sectors": 2,
+    "hypotheses_validated": [
+        "H1: Tail Connectedness > Median",
+        "H2: Asymmetric Volatility Superiority",
+        "H3: Banking Systemic Dominance"
+    ],
+    "window_sensitivity_status": "ROBUST",
+    "horizon_sensitivity_status": "STABLE",
+    "threshold_sensitivity_status": "ROBUST",
+    "validation_conclusion": "Research findings remain robust across hyperparameter variations."
+}
