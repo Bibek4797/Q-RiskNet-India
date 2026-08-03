@@ -1,10 +1,15 @@
+"""
+Q-RiskNet India — Clean Executive Sidebar Controls
+Copyright (c) 2026 Bibek Rout
+"""
 from datetime import datetime, timedelta
 import streamlit as st
 from src.config.settings import TICKER_MAP, MODEL_CFG, GIRF_CFG
 
+
 def render_sidebar():
     """
-    Renders sidebar controls and returns configuration dictionary.
+    Renders clean, global sidebar controls and returns configuration dictionary.
     """
     st.sidebar.image("https://img.icons8.com/color/96/000000/line-chart.png", width=60)
     st.sidebar.title("📌 Q-RiskNet Platform")
@@ -44,32 +49,28 @@ def render_sidebar():
     if start_date >= end_date:
         st.sidebar.error("⚠️ Start Date must be earlier than End Date.")
 
-    st.sidebar.subheader("⚙️ Model Settings")
-    model_choice = st.sidebar.radio("Model Type", ["Quantile VAR (QVAR)", "Quantile LSTM"])
-    quantile = st.sidebar.slider("Quantile Value (τ)", min_value=0.01, max_value=0.99, value=0.50, step=0.01)
-
-    lags = st.sidebar.slider("Autoregressive Lags (p)", min_value=1, max_value=5, value=MODEL_CFG.get("qvar", {}).get("default_lags", 2))
-    seq_len = MODEL_CFG.get("quantile_lstm", {}).get("default_seq_len", 5)
-    epochs = MODEL_CFG.get("quantile_lstm", {}).get("default_epochs", 30)
-    hidden_dim = "auto"
-
-
-    volatility_proxy = st.sidebar.selectbox("Risk / Volatility Metric", ["Log Returns", "GARCH(1,1) Volatility"])
-    forecast_horizon = st.sidebar.slider("Forecast Horizon (H)", min_value=5, max_value=30, value=GIRF_CFG.get("default_horizon", 10))
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("⚙️ Global Model Parameters")
+    lags = st.sidebar.slider(
+        "Autoregressive Lags (p)",
+        min_value=1, max_value=5,
+        value=MODEL_CFG.get("qvar", {}).get("default_lags", 2)
+    )
+    forecast_horizon = st.sidebar.slider(
+        "Forecast Horizon (H)",
+        min_value=5, max_value=30,
+        value=GIRF_CFG.get("default_horizon", 10)
+    )
 
     return {
         "page_choice": page_choice,
         "selected_sectors": selected_sectors,
         "start_date": start_date,
         "end_date": end_date,
-        "model_choice": model_choice,
-        "quantile": quantile,
         "lags": lags,
-        "seq_len": seq_len,
-        "epochs": epochs,
-        "hidden_dim": hidden_dim,
-        "volatility_proxy": volatility_proxy,
-        "forecast_horizon": forecast_horizon
+        "forecast_horizon": forecast_horizon,
+        # Default model settings
+        "seq_len": MODEL_CFG.get("quantile_lstm", {}).get("default_seq_len", 5),
+        "epochs": MODEL_CFG.get("quantile_lstm", {}).get("default_epochs", 30),
+        "hidden_dim": "auto"
     }
-
-
