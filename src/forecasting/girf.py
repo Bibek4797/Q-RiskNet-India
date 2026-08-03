@@ -66,7 +66,7 @@ def calculate_connectedness_metrics(spillover_df):
             if row != col:
                 total_non_diag += spillover_df.loc[row, col]
     
-    tci = total_non_diag / (K - 1) if K > 1 else 0.0
+    tci = total_non_diag / K if K > 0 else 0.0
     
     return {
         "TO": to_metrics,

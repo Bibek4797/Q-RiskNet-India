@@ -1,0 +1,14 @@
+{
+    "total_sectors": 2,
+    "total_connectedness_index_pct": 44.24,
+    "max_net_transmitter": "Bank",
+    "max_net_receiver": "IT",
+    "net_transmitters_count": 1,
+    "net_receivers_count": 1,
+    "net_transmitters": [
+        "Bank"
+    ],
+    "net_receivers": [
+        "IT"
+    ]
+}
