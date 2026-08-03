@@ -4,11 +4,8 @@ import streamlit as st
 
 def log_event(level, message, elapsed_time=None):
     """
-    Logs an event with a timestamp and details. Stores it in Streamlit session state.
+    Logs an event with a timestamp and details. Stores it in Streamlit session state if available.
     """
-    if 'diagnostics_logs' not in st.session_state:
-        st.session_state['diagnostics_logs'] = []
-        
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     elapsed_str = f" ({elapsed_time:.3f}s)" if elapsed_time is not None else ""
     log_entry = {
@@ -19,7 +16,12 @@ def log_event(level, message, elapsed_time=None):
     }
     
     print(f"[{level}] {timestamp} - {message}{elapsed_str}")
-    st.session_state['diagnostics_logs'].append(log_entry)
+    try:
+        if 'diagnostics_logs' not in st.session_state:
+            st.session_state['diagnostics_logs'] = []
+        st.session_state['diagnostics_logs'].append(log_entry)
+    except Exception:
+        pass
 
 def log_info(message, elapsed_time=None):
     log_event("INFO", message, elapsed_time)
@@ -28,9 +30,6 @@ def log_warning(message):
     log_event("WARNING", message)
 
 def log_error(message, error_exception=None):
-    if 'diagnostics_logs' not in st.session_state:
-        st.session_state['diagnostics_logs'] = []
-        
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     tb_str = "".join(traceback.format_exception(type(error_exception), error_exception, error_exception.__traceback__)) if error_exception else None
     
@@ -45,7 +44,13 @@ def log_error(message, error_exception=None):
     if tb_str:
         print(tb_str)
         
-    st.session_state['diagnostics_logs'].append(log_entry)
+    try:
+        if 'diagnostics_logs' not in st.session_state:
+            st.session_state['diagnostics_logs'] = []
+        st.session_state['diagnostics_logs'].append(log_entry)
+    except Exception:
+        pass
+
 
 class DiagnosticTimer:
     """

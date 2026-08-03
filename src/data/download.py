@@ -25,14 +25,26 @@ def fetch_raw_market_data(sectors, start_date, end_date, save_raw=True):
 
         diag.log_info(f"Downloading tickers: {tickers} from {start_date} to {end_date}")
 
+        raw_dir = os.path.join(ROOT_DIR, PATHS.get("raw_data", "data/raw"))
+        raw_filepath = os.path.join(raw_dir, "raw_prices.csv")
+
         try:
             raw_data = yf.download(tickers, start=start_date, end=end_date, progress=False)
         except Exception as e:
-            diag.log_error("Failed to execute yf.download", e)
-            raise ValueError(f"Failed to download data from Yahoo Finance: {str(e)}")
+            diag.log_warning(f"yfinance download failed: {e}. Attempting local fallback.")
+            raw_data = pd.DataFrame()
 
         if raw_data.empty:
-            diag.log_error("Yahoo Finance returned an empty dataset.")
+            if os.path.exists(raw_filepath):
+                diag.log_info(f"Loading local raw data fallback from {raw_filepath}")
+                close_prices = pd.read_csv(raw_filepath, index_col=0, parse_dates=True)
+                valid_cols = [s for s in sectors if s in close_prices.columns]
+                if valid_cols:
+                    close_prices = close_prices[valid_cols]
+                    close_prices = close_prices.loc[str(start_date):str(end_date)]
+                    if not close_prices.empty:
+                        return close_prices
+            diag.log_error("Yahoo Finance returned empty dataset and no local fallback available.")
             raise ValueError("Yahoo Finance returned an empty dataset. Try selecting a different date range.")
 
         if isinstance(raw_data.columns, pd.MultiIndex):
@@ -45,10 +57,9 @@ def fetch_raw_market_data(sectors, start_date, end_date, save_raw=True):
         close_prices = close_prices.rename(columns=reverse_map)
 
         if save_raw:
-            raw_dir = os.path.join(ROOT_DIR, PATHS.get("raw_data", "data/raw"))
             os.makedirs(raw_dir, exist_ok=True)
-            raw_filepath = os.path.join(raw_dir, "raw_prices.csv")
             close_prices.to_csv(raw_filepath)
             diag.log_info(f"Saved raw prices to {raw_filepath}")
 
         return close_prices
+

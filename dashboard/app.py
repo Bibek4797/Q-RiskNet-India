@@ -109,7 +109,10 @@ if page in data_required_pages:
         st.stop()
 
     try:
-        pipeline_res = execute_pipeline(tuple(selected_sectors), cfg["start_date"], cfg["end_date"])
+        start_str = str(cfg["start_date"])
+        end_str = str(cfg["end_date"])
+        pipeline_res = execute_pipeline(tuple(selected_sectors), start_str, end_str)
+
         st.session_state['pipeline_output'] = pipeline_res
         prices_df = pipeline_res["prices"]
         returns_df = pipeline_res["returns"]
