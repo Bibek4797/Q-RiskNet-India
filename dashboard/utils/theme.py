@@ -23,6 +23,10 @@ def inject_custom_css():
     
     st.markdown(f"""
     <style>
+        /* Hide default Streamlit multi-page auto-generated sidebar navigation */
+        [data-testid="stSidebarNav"] {{
+            display: none !important;
+        }}
         .main-header {{
             font-size: 2.2rem;
             font-weight: 700;
