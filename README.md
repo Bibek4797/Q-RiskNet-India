@@ -19,56 +19,59 @@ Combining classic econometrics (**QVAR**, **GJR-GARCH(1,1,1)**) with deep learni
 Q-RiskNet-India/
 │
 ├── dashboard/                  # Pure Streamlit Presentation Layer
-│   ├── app.py                  # Main Streamlit declarative dashboard application
-│   ├── components/             # Reusable UI components
-│   │   ├── sidebar.py          # Data & model control panels
-│   │   ├── kpi_cards.py        # Systemic risk TCI & transmitter cards
-│   │   ├── charts.py           # Plotly price, network & spillover plots
-│   │   └── tables.py           # Styler tables & descriptive statistics
-│   ├── utils/                  # UI themes & styling
-│   │   └── theme.py            # CSS layout & dark mode configuration
-│   ├── assets/                 # Custom branding & static media
-│   └── pages/                  # Additional view controllers
+│   ├── app.py                  # Master entry point, routing & data orchestration
+│   ├── pages/                  # Modular View Controllers (11 pages)
+│   │   ├── home.py             # Overview, research questions & status
+│   │   ├── data_center.py      # Ingestion, validation & price/return views
+│   │   ├── diagnostics.py      # Stationarity, autocorrelation, ARCH-LM & KDE
+│   │   ├── volatility.py       # Comparative ARCH/GARCH/EGARCH/GJR-GARCH models
+│   │   ├── qvar_analysis.py    # QVAR estimation, heatmaps, stability & GIRF
+│   │   ├── connectedness.py    # Spillover matrix & dynamic rolling TCI
+│   │   ├── network.py          # Directed network graph, centrality & MST
+│   │   ├── forecasting.py      # Classical, ML & Quantile LSTM benchmarks
+│   │   ├── validation.py       # Sensitivity analysis across W, H, τ_edge
+│   │   ├── reports.py          # Centralized report catalog & export center
+│   │   └── about.py            # Methodology, tech stack & author info
+│   ├── components/             # Reusable Presentation Components
+│   │   ├── sidebar.py          # Navigation menu & parameter controls
+│   │   ├── kpi_cards.py        # Executive TCI & spillover KPI cards
+│   │   ├── charts.py           # Plotly network, spillover & forecast plots
+│   │   ├── tables.py           # Styled DataFrames & spillover matrices
+│   │   ├── exports.py          # CSV/JSON download buttons
+│   │   └── status.py           # Safe execution & status badges
+│   └── utils/                  # UI Styling & Layout Configuration
+│       └── theme.py            # CSS layout & dark mode configuration
 │
 ├── src/                        # Modular Core Domain Logic Package
-│   ├── data/                   # data_loader.py (Data ingestion & log return processing)
-│   ├── econometrics/           # garch.py (GJR-GARCH) & stats.py (ADF, Jarque-Bera)
-│   ├── models/                 # qvar.py (QVAR) & quantile_lstm.py (PyTorch Pinball LSTM)
-│   ├── forecasting/            # girf.py (GIRF shocks & Diebold-Yilmaz connectedness)
-│   ├── network/                # mst.py (Correlation MST) & spectral.py (Eigengap Spectral)
-│   ├── visualization/          # plotly_plots.py (Directed network graphs & heatmaps)
-│   ├── diagnostics/            # logger.py (Execution timers & exception loggers)
-│   ├── utils/                  # helpers.py (Formatting utilities)
-│   └── config/                 # settings.py (Central YAML settings loader)
+│   ├── data/                   # Data ingestion, preprocessing & validation
+│   ├── econometrics/           # Stationarity, volatility, autocorrelation & ARCH-LM
+│   ├── models/                 # QVARModel & LSTMQuantileModel
+│   ├── forecasting/            # GIRF spillovers & Diebold-Yilmaz TCI
+│   ├── network/                # Centrality, spectral clustering & MST
+│   ├── visualization/          # Plotly network graph renderers
+│   ├── diagnostics/            # Execution timers & logger
+│   └── config/                 # YAML settings loader
 │
 ├── configs/
 │   └── config.yaml             # Centralized YAML Configuration File
 │
-├── data/                       # Data storage layers
-│   ├── raw/                    # Downloaded price series
-│   ├── processed/              # Log returns & GARCH volatility estimates
-│   └── external/               # Macro & benchmark data
+├── tests/                      # Pytest Automated Test Suite (34 tests)
+│   ├── test_connectedness.py   # Static & rolling TCI tests
+│   ├── test_dashboard_structure.py # Modular dashboard import tests
+│   ├── test_data.py            # Data pipeline & return calculation tests
+│   ├── test_diagnostics.py     # Stationarity & heteroskedasticity tests
+│   ├── test_forecasting_benchmark.py # Forecast metrics & DM tests
+│   ├── test_models.py          # QVAR & Quantile LSTM tests
+│   ├── test_network_science.py # Network centrality & MST tests
+│   ├── test_qvar.py            # Multi-quantile QVAR tests
+│   ├── test_validation.py      # Sensitivity analysis tests
+│   └── test_volatility.py      # Volatility fitting & forecast tests
 │
-├── tests/                      # Pytest Automated Test Suite
-│   ├── test_data.py            # Data loading & returns tests
-│   ├── test_models.py          # QVAR & Quantile LSTM fitting tests
-│   └── test_network.py         # MST & Spectral Clustering tests
-│
-├── notebooks/                  # Exploratory research notebooks
-├── reports/                    # Generated PDF/LaTeX research reports
-├── docs/                       # Architecture documentation & phase logs
-├── models/                     # Saved PyTorch model checkpoints (.pt)
-├── logs/                       # Application runtime logs
-├── outputs/                    # Exported risk matrices & CSVs
-│
-├── .github/
-│   └── workflows/ci.yml        # GitHub Actions CI Automation
-│
+├── reports/                    # Generated CSV/JSON research outputs
+├── docs/                       # Methodology documentation & phase logs
 ├── requirements.txt            # Python dependencies
 ├── pyproject.toml              # Build & pytest configuration
 ├── Dockerfile                  # Container build instructions
-├── docker-compose.yml          # Container orchestration
-├── .gitignore                  # Git exclusion rules
 ├── LICENSE                     # Copyright (c) 2026 Bibek Rout
 └── README.md                   # Project documentation
 ```
@@ -97,6 +100,13 @@ Open your web browser at **`http://localhost:8501`**.
 ---
 
 ## 🧪 Testing & Code Quality
+
+Run the full automated test suite using `pytest`:
+```bash
+pytest -v
+```
+All **34 unit tests** pass cleanly.
+
 
 Run the automated test suite locally:
 ```bash

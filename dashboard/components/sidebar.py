@@ -7,8 +7,28 @@ def render_sidebar():
     Renders sidebar controls and returns configuration dictionary.
     """
     st.sidebar.image("https://img.icons8.com/color/96/000000/line-chart.png", width=60)
-    st.sidebar.title("📌 Q-RiskNet Controls")
+    st.sidebar.title("📌 Q-RiskNet Platform")
 
+    st.sidebar.subheader("🗺️ Research Navigation")
+    page_choice = st.sidebar.radio(
+        "Select Module",
+        [
+            "🏠 Home",
+            "📊 Data Center",
+            "🔬 Econometric Diagnostics",
+            "📈 Volatility Modelling",
+            "📊 QVAR Analysis",
+            "🌊 Connectedness & Spillover",
+            "🕸️ Network Topology",
+            "🔮 Forecasting Benchmark",
+            "🔬 Research Validation",
+            "📋 Reports Center",
+            "ℹ️ About"
+        ],
+        index=0
+    )
+
+    st.sidebar.markdown("---")
     st.sidebar.subheader("📅 Data Configuration")
     selected_sectors = st.sidebar.multiselect(
         "Select Sectoral Indices",
@@ -20,6 +40,9 @@ def render_sidebar():
     five_years_ago = today - timedelta(days=5 * 365)
     start_date = st.sidebar.date_input("Start Date", value=five_years_ago)
     end_date = st.sidebar.date_input("End Date", value=today)
+
+    if start_date >= end_date:
+        st.sidebar.error("⚠️ Start Date must be earlier than End Date.")
 
     st.sidebar.subheader("⚙️ Model Settings")
     model_choice = st.sidebar.radio("Model Type", ["Quantile VAR (QVAR)", "Quantile LSTM"])
@@ -46,6 +69,7 @@ def render_sidebar():
     forecast_horizon = st.sidebar.slider("Forecast Horizon (H)", min_value=5, max_value=30, value=GIRF_CFG.get("default_horizon", 10))
 
     return {
+        "page_choice": page_choice,
         "selected_sectors": selected_sectors,
         "start_date": start_date,
         "end_date": end_date,
@@ -59,3 +83,4 @@ def render_sidebar():
         "volatility_proxy": volatility_proxy,
         "forecast_horizon": forecast_horizon
     }
+

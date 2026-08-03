@@ -3,6 +3,6 @@ Bank,"ARIMA(1,0,1)",Classical / ML,0.9096,0.7436,52.94
 Bank,Historical Mean,Classical / ML,0.9247,0.7711,52.94
 Bank,Support Vector Regression,Classical / ML,0.9411,0.7993,47.06
 Bank,Random Walk (Naive),Classical / ML,0.943,0.7821,0.0
-Bank,Quantile LSTM,Deep Learning,0.9707,0.7784,52.94
+Bank,Quantile LSTM,Deep Learning,0.9467,0.7623,52.94
 Bank,Random Forest Regressor,Classical / ML,0.9715,0.8272,47.06
 Bank,Gradient Boosting Regressor,Classical / ML,1.0331,0.8312,52.94
