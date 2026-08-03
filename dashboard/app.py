@@ -132,10 +132,8 @@ if page in data_required_pages:
             st.session_state['qvar_output'] = qvar_res
 
         if page in ["🌊 Connectedness & Spillover"]:
-            if cfg["volatility_proxy"] == "GARCH(1,1) Volatility":
-                model_input = execute_garch_proxy(returns_df)
-            else:
-                model_input = returns_df.copy()
+            model_input = returns_df.copy()
+
 
     except Exception as e:
         diag.log_error("Data pipeline or estimation failure", e)
