@@ -1,0 +1,3 @@
+Sector,Test,Lag,Statistic,p_value,Autocorrelation_Present,Interpretation,Durbin_Watson
+Bank,Ljung-Box,10,4.6963,0.9105,False,No significant serial correlation (White Noise),1.771
+IT,Ljung-Box,10,13.2736,0.2088,False,No significant serial correlation (White Noise),2.1864

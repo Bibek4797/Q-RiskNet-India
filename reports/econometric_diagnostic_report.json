@@ -1,0 +1,11 @@
+{
+    "total_sectors": 2,
+    "sectors": [
+        "Bank",
+        "IT"
+    ],
+    "stationary_sectors_count": 2,
+    "arch_effects_count": 0,
+    "non_normal_sectors_count": 0,
+    "structural_breaks_count": 0
+}

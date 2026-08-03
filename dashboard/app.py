@@ -11,6 +11,10 @@ if root_path not in sys.path:
 import src.data.pipeline as pipe
 import src.econometrics.stats as stats
 import src.econometrics.garch as garch
+import src.econometrics.diagnostics_runner as diag_runner
+import src.econometrics.autocorr as autocorr
+import src.econometrics.hetero as hetero
+import src.econometrics.distribution as dist_mod
 import src.models.qvar as qvar
 import src.models.quantile_lstm as qlstm
 import src.forecasting.girf as girf
@@ -25,6 +29,9 @@ from dashboard.components.charts import (
     render_prices_chart,
     render_drawdowns_chart,
     render_rolling_volatility_chart,
+    render_acf_pacf_chart,
+    render_kde_comparison_chart,
+    render_rolling_variance_chart,
     render_correlation_chart,
     render_spillover_charts,
     render_network_graph,
@@ -40,6 +47,8 @@ inject_custom_css()
 # Initialize session state
 if 'pipeline_output' not in st.session_state:
     st.session_state['pipeline_output'] = None
+if 'diag_output' not in st.session_state:
+    st.session_state['diag_output'] = None
 if 'spillover_df' not in st.session_state:
     st.session_state['spillover_df'] = None
 if 'metrics' not in st.session_state:
@@ -51,9 +60,10 @@ cfg = render_sidebar()
 # Render Application Banner Header
 render_header()
 
-# Create 4 Core Financial Tabs
-tab_data, tab_spillover, tab_network, tab_rolling = st.tabs([
+# Create 5 Core Tabs
+tab_data, tab_diag, tab_spillover, tab_network, tab_rolling = st.tabs([
     "📊 Data Center & Pipeline", 
+    "🔬 Econometric Diagnostics",
     "📈 Volatility Spillover", 
     "🕸️ Network Topology", 
     "🕒 Dynamic TCI"
@@ -69,6 +79,11 @@ if len(selected_sectors) < 2:
 def execute_pipeline(sectors, start, end):
     return pipe.run_data_pipeline(sectors, start, end, save_artifacts=True)
 
+# Run Econometric Diagnostics Suite
+@st.cache_data(show_spinner="Executing Econometric Diagnostics Suite...")
+def execute_diagnostics(returns_df):
+    return diag_runner.run_all_econometric_diagnostics(returns_df, save_reports=True)
+
 pipeline_res = None
 try:
     pipeline_res = execute_pipeline(tuple(selected_sectors), cfg["start_date"], cfg["end_date"])
@@ -78,6 +93,9 @@ try:
     features_dict = pipeline_res["features"]
     val_report = pipeline_res["validation"]
     
+    diag_res = execute_diagnostics(returns_df)
+    st.session_state['diag_output'] = diag_res
+
     if cfg["volatility_proxy"] == "GARCH(1,1) Volatility":
         garch_cols = {}
         for col in returns_df.columns:
@@ -87,8 +105,8 @@ try:
         model_input = returns_df.copy()
 
 except Exception as e:
-    diag.log_error("Data engineering pipeline execution failure", e)
-    st.error(f"❌ Error in Data Pipeline: {str(e)}")
+    diag.log_error("Data pipeline / diagnostics failure", e)
+    st.error(f"❌ Error in Data Pipeline / Diagnostics: {str(e)}")
     st.info("💡 Try selecting different sectors, widening the date range, or picking fewer indices.")
     st.stop()
 
@@ -96,7 +114,6 @@ except Exception as e:
 with tab_data:
     st.subheader("📊 Enterprise Financial Data Engineering & Quality Center")
     
-    # Dataset Metadata KPI Bar
     col_d1, col_d2, col_d3, col_d4 = st.columns(4)
     with col_d1:
         st.metric("Total Observations", val_report["total_rows"])
@@ -138,7 +155,61 @@ with tab_data:
         desc_stats = stats.get_descriptive_stats(returns_df)
         render_descriptive_table(desc_stats)
 
-# TAB 2: VOLATILITY SPILLOVER
+# TAB 2: ECONOMETRIC DIAGNOSTICS & STATISTICAL ASSUMPTION VALIDATION
+with tab_diag:
+    st.subheader("🔬 Econometric Diagnostics & Statistical Assumption Validation")
+    st.markdown("""
+    Rigorous econometric verification of stationarity, autocorrelation, heteroskedasticity, fat tails, non-linearity, and structural breaks.
+    """)
+
+    diag_subtab1, diag_subtab2, diag_subtab3, diag_subtab4, diag_subtab5 = st.tabs([
+        "1. Stationarity (ADF/KPSS/ZA)",
+        "2. Autocorrelation (ACF/LB)",
+        "3. Volatility Clustering (ARCH-LM)",
+        "4. Distribution & Tails (JB/KDE)",
+        "5. Non-Linearity & Breaks (BDS/CUSUM)"
+    ])
+
+    with diag_subtab1:
+        st.subheader("📌 Unit Root & Stationarity Tests")
+        st.dataframe(diag_res["stationarity"], use_container_width=True)
+        st.caption("ADF: Null = Unit Root. KPSS: Null = Trend Stationary. Zivot-Andrews: Null = Unit Root w/ Break.")
+
+    with diag_subtab2:
+        st.subheader("🔄 Autocorrelation & Serial Correlation")
+        st.dataframe(diag_res["autocorrelation"], use_container_width=True)
+        target_sector = st.selectbox("Select Sector for ACF/PACF Analysis", options=list(returns_df.columns))
+        if target_sector:
+            acf_pacf_data = autocorr.compute_acf_pacf(returns_df[target_sector], nlags=20)
+            render_acf_pacf_chart(acf_pacf_data["lags"], acf_pacf_data["acf"], acf_pacf_data["pacf"], target_sector)
+
+    with diag_subtab3:
+        st.subheader("⚡ Heteroskedasticity & Volatility Clustering")
+        st.dataframe(diag_res["heteroskedasticity"], use_container_width=True)
+        target_arch_sector = st.selectbox("Select Sector for Rolling Variance", options=list(returns_df.columns), key="arch_sec")
+        if target_arch_sector:
+            roll_var = hetero.compute_rolling_variance(returns_df[target_arch_sector])
+            render_rolling_variance_chart(roll_var, target_arch_sector)
+
+    with diag_subtab4:
+        st.subheader("📊 Distribution Analysis & Fat Tail Behavior")
+        st.dataframe(diag_res["distribution"], use_container_width=True)
+        target_dist_sector = st.selectbox("Select Sector for Empirical KDE vs Normal Overlay", options=list(returns_df.columns), key="dist_sec")
+        if target_dist_sector:
+            kde_data = dist_mod.get_kde_comparison(returns_df[target_dist_sector])
+            render_kde_comparison_chart(returns_df[target_dist_sector], kde_data["x"], kde_data["gaussian_pdf"])
+
+    with diag_subtab5:
+        st.subheader("🌀 Non-Linearity & Structural Break Analysis")
+        col_nl1, col_nl2 = st.columns(2)
+        with col_nl1:
+            st.markdown("#### Brock-Dechert-Scheinkman (BDS) Test")
+            st.dataframe(diag_res["nonlinearity"], use_container_width=True)
+        with col_nl2:
+            st.markdown("#### OLS CUSUM Parameter Stability Test")
+            st.dataframe(diag_res["structural_breaks"], use_container_width=True)
+
+# TAB 3: VOLATILITY SPILLOVER
 with tab_spillover:
     st.subheader(f"📈 Risk Spillover Analysis ({cfg['model_choice']} at Quantile τ={cfg['quantile']:.2f})")
     
@@ -188,7 +259,7 @@ with tab_spillover:
         st.subheader("Diebold-Yilmaz Spillover Matrix (%)")
         render_spillover_matrix_table(spill_df, metrics)
 
-# TAB 3: NETWORK TOPOLOGY & CLUSTERS
+# TAB 4: NETWORK TOPOLOGY & CLUSTERS
 with tab_network:
     if st.session_state['spillover_df'] is None:
         st.info("Please calculate connectedness metrics in the 'Volatility Spillover' tab first.")
@@ -231,7 +302,7 @@ with tab_network:
             diag.log_error("MST generation failure", e)
             st.error(f"Error drawing MST: {str(e)}")
 
-# TAB 4: DYNAMIC TCI
+# TAB 5: DYNAMIC TCI
 with tab_rolling:
     st.subheader("🕒 Dynamic Time-Varying Total Connectedness Index (TCI)")
     

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -47,6 +48,70 @@ def render_rolling_volatility_chart(vol_df, window_label="20-Day"):
     )
     fig_vol.update_layout(template="plotly_dark", height=400)
     st.plotly_chart(fig_vol, use_container_width=True)
+
+def render_acf_pacf_chart(lags, acf_vals, pacf_vals, sector_name):
+    """
+    Renders ACF and PACF bar charts.
+    """
+    col_a, col_p = st.columns(2)
+    with col_a:
+        fig_acf = px.bar(
+            x=lags, y=acf_vals,
+            title=f"Autocorrelation (ACF) - {sector_name}",
+            labels={"x": "Lag", "y": "ACF"}
+        )
+        fig_acf.update_layout(template="plotly_dark", height=350)
+        st.plotly_chart(fig_acf, use_container_width=True)
+    with col_p:
+        fig_pacf = px.bar(
+            x=lags, y=pacf_vals,
+            title=f"Partial Autocorrelation (PACF) - {sector_name}",
+            labels={"x": "Lag", "y": "PACF"}
+        )
+        fig_pacf.update_layout(template="plotly_dark", height=350)
+        st.plotly_chart(fig_pacf, use_container_width=True)
+
+def render_kde_comparison_chart(series, x_grid, norm_pdf):
+    """
+    Renders Empirical Return Histogram with Gaussian PDF Overlay.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Histogram(
+        x=series,
+        histnorm='probability density',
+        name='Empirical Returns',
+        marker_color='#3b82f6',
+        opacity=0.6
+    ))
+    fig.add_trace(go.Scatter(
+        x=x_grid,
+        y=norm_pdf,
+        mode='lines',
+        name='Gaussian Normal Fit',
+        line=dict(color='#ef4444', width=2.5, dash='dash')
+    ))
+    fig.update_layout(
+        title=f"Empirical Returns Distribution vs Gaussian Fit ({series.name})",
+        xaxis_title="Return (%)",
+        yaxis_title="Density",
+        template="plotly_dark",
+        height=400
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+def render_rolling_variance_chart(roll_var, sector_name):
+    """
+    Renders 20-Day Rolling Variance plot for volatility clustering.
+    """
+    fig = px.line(
+        roll_var,
+        x=roll_var.index,
+        y=roll_var.values,
+        title=f"Rolling Sample Variance (20-Day Window) - {sector_name}",
+        labels={"value": "Variance", "index": "Date"}
+    )
+    fig.update_layout(template="plotly_dark", height=380)
+    st.plotly_chart(fig, use_container_width=True)
 
 def render_correlation_chart(corr_df):
     """

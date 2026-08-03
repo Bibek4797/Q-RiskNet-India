@@ -1,0 +1,7 @@
+Sector,Test,Statistic,p_value,Lags,Crit_1%,Crit_5%,Decision,Interpretation,Break_Date
+Bank,ADF,-6.5011,0.0,0.0,-3.5715,-2.9226,Stationary,Reject H0: Series has no unit root,
+Bank,KPSS,0.2256,0.1,0.0,0.739,0.463,Stationary,Fail to reject H0: Trend-stationary,
+Bank,Zivot-Andrews,-7.3775,0.0,,-5.2764,-4.8107,Stationary w/ Break,Detected potential structural break near N/A,N/A
+IT,ADF,-7.5511,0.0,0.0,-3.5715,-2.9226,Stationary,Reject H0: Series has no unit root,
+IT,KPSS,0.1601,0.1,4.0,0.739,0.463,Stationary,Fail to reject H0: Trend-stationary,
+IT,Zivot-Andrews,-8.0082,0.0,,-5.2764,-4.8107,Stationary w/ Break,Detected potential structural break near N/A,N/A
