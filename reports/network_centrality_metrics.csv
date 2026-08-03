@@ -1,0 +1,4 @@
+Sector,Out_Degree_Export,In_Degree_Import,Net_Degree_Export,Betweenness_Centrality,Closeness_Centrality,PageRank_Centrality,Eigenvector_Centrality
+Energy,35.67,35.67,0.0,0.0,0.0561,0.3767,0.6329
+IT,34.11,34.11,0.0,0.0,0.0586,0.3614,0.6198
+Bank,23.57,23.57,0.0,0.0,0.0849,0.2619,0.464

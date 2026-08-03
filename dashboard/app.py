@@ -22,8 +22,11 @@ import src.models.qvar as qvar
 import src.models.qvar_runner as qvar_runner
 import src.models.quantile_lstm as qlstm
 import src.forecasting.girf as girf
+import src.forecasting.connectedness_runner as conn_runner
 import src.network.mst as mst
 import src.network.spectral as spectral
+import src.network.centrality as centrality
+import src.network.network_runner as net_runner
 import src.diagnostics.logger as diag
 
 from dashboard.utils.theme import setup_page_config, inject_custom_css, render_header
@@ -393,7 +396,7 @@ with tab_spillover:
         st.subheader("Diebold-Yilmaz Spillover Matrix (%)")
         render_spillover_matrix_table(spill_df, metrics)
 
-# TAB 6: NETWORK TOPOLOGY & CLUSTERS
+# TAB 6: FINANCIAL NETWORK SCIENCE & SYSTEMIC TOPOLOGY
 with tab_network:
     if st.session_state['spillover_df'] is None:
         st.info("Please calculate connectedness metrics in the 'Volatility Spillover' tab first.")
@@ -425,6 +428,30 @@ with tab_network:
             except Exception as e:
                 diag.log_error("Network rendering failure", e)
                 st.error(f"Error drawing network graph: {str(e)}")
+
+        st.markdown("---")
+        st.subheader("📊 Network Centrality & Systemic Topology Rankings")
+        try:
+            net_res = net_runner.run_all_network_analysis(spill_df, returns_df, threshold_pct=min_edge, save_reports=True)
+            centrality_df = net_res["centrality_df"]
+            global_stats = net_res["global_stats"]
+            
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("Total Directed Edges", global_stats["Edge_Count"])
+            with c2:
+                st.metric("Network Density", f"{global_stats['Network_Density']:.3f}")
+            with c3:
+                top_hub = centrality_df.iloc[0]["Sector"] if not centrality_df.empty else "N/A"
+                st.metric("Top Systemic Risk Hub", top_hub)
+            with c4:
+                top_bridge = centrality_df.sort_values(by="Betweenness_Centrality", ascending=False).iloc[0]["Sector"] if not centrality_df.empty else "N/A"
+                st.metric("Top Bridge Sector", top_bridge)
+
+            st.dataframe(centrality_df, use_container_width=True)
+        except Exception as e:
+            diag.log_error("Centrality computation failure", e)
+            st.error(f"Error computing network centrality: {str(e)}")
                 
         st.markdown("---")
         st.subheader("🌲 Minimum Spanning Tree (MST) Risk Backbone")

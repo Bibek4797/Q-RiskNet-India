@@ -1,0 +1,15 @@
+{
+    "total_sectors": 3,
+    "threshold_pct": 10.0,
+    "global_topology": {
+        "Node_Count": 3,
+        "Edge_Count": 6,
+        "Network_Density": 1.0,
+        "Avg_Clustering_Coefficient": 0.6374,
+        "Is_Weakly_Connected": true,
+        "Connected_Components_Count": 1
+    },
+    "top_systemic_hub": "Energy",
+    "top_bridge_sector": "Energy",
+    "community_clusters_count": 2
+}
