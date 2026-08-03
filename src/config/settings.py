@@ -34,6 +34,7 @@ PATHS = CFG.get("paths", {
     "raw_data": "data/raw",
     "processed_data": "data/processed",
     "external_data": "data/external",
+    "reports_dir": "reports",
     "models_dir": "models",
     "outputs_dir": "outputs",
     "logs_dir": "logs"
@@ -42,3 +43,4 @@ PATHS = CFG.get("paths", {
 DASHBOARD_CFG = CFG.get("dashboard", {})
 MODEL_CFG = CFG.get("models", {})
 GIRF_CFG = CFG.get("girf", {})
+PIPELINE_CFG = CFG.get("data_pipeline", {})

@@ -7,6 +7,7 @@ paths:
   raw_data: "data/raw"
   processed_data: "data/processed"
   external_data: "data/external"
+  reports_dir: "reports"
   models_dir: "models"
   outputs_dir: "outputs"
   logs_dir: "logs"
@@ -32,6 +33,13 @@ data:
     - "Nifty Auto"
     - "Nifty FMCG"
     - "Nifty Metal"
+
+data_pipeline:
+  rolling_short_window: 20
+  rolling_long_window: 60
+  export_format: "csv"
+  missing_tolerance_pct: 0.05
+  outlier_std_threshold: 4.0
 
 models:
   qvar:

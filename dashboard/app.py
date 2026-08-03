@@ -8,7 +8,7 @@ root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
 
-import src.data.data_loader as dl
+import src.data.pipeline as pipe
 import src.econometrics.stats as stats
 import src.econometrics.garch as garch
 import src.models.qvar as qvar
@@ -23,6 +23,8 @@ from dashboard.components.sidebar import render_sidebar
 from dashboard.components.kpi_cards import render_kpi_cards
 from dashboard.components.charts import (
     render_prices_chart,
+    render_drawdowns_chart,
+    render_rolling_volatility_chart,
     render_correlation_chart,
     render_spillover_charts,
     render_network_graph,
@@ -36,8 +38,8 @@ setup_page_config()
 inject_custom_css()
 
 # Initialize session state
-if 'data_downloaded' not in st.session_state:
-    st.session_state['data_downloaded'] = False
+if 'pipeline_output' not in st.session_state:
+    st.session_state['pipeline_output'] = None
 if 'spillover_df' not in st.session_state:
     st.session_state['spillover_df'] = None
 if 'metrics' not in st.session_state:
@@ -51,7 +53,7 @@ render_header()
 
 # Create 4 Core Financial Tabs
 tab_data, tab_spillover, tab_network, tab_rolling = st.tabs([
-    "📊 Data Center", 
+    "📊 Data Center & Pipeline", 
     "📈 Volatility Spillover", 
     "🕸️ Network Topology", 
     "🕒 Dynamic TCI"
@@ -62,17 +64,19 @@ if len(selected_sectors) < 2:
     st.error("⚠️ Please select at least two sectoral indices in the sidebar to perform network analysis.")
     st.stop()
 
-@st.cache_data(show_spinner="Downloading data from Yahoo Finance...")
-def load_data(sectors, start, end):
-    return dl.download_data(sectors, start, end)
+# Run Data Engineering Pipeline
+@st.cache_data(show_spinner="Executing Financial Data Engineering Pipeline...")
+def execute_pipeline(sectors, start, end):
+    return pipe.run_data_pipeline(sectors, start, end, save_artifacts=True)
 
-prices_df = pd.DataFrame()
-returns_df = pd.DataFrame()
-model_input = pd.DataFrame()
-
+pipeline_res = None
 try:
-    prices_df = load_data(tuple(selected_sectors), cfg["start_date"], cfg["end_date"])
-    returns_df = dl.calculate_log_returns(prices_df)
+    pipeline_res = execute_pipeline(tuple(selected_sectors), cfg["start_date"], cfg["end_date"])
+    st.session_state['pipeline_output'] = pipeline_res
+    prices_df = pipeline_res["prices"]
+    returns_df = pipeline_res["returns"]
+    features_dict = pipeline_res["features"]
+    val_report = pipeline_res["validation"]
     
     if cfg["volatility_proxy"] == "GARCH(1,1) Volatility":
         garch_cols = {}
@@ -81,28 +85,56 @@ try:
         model_input = pd.DataFrame(garch_cols, index=returns_df.index).dropna()
     else:
         model_input = returns_df.copy()
-        
-    st.session_state['data_downloaded'] = True
 
 except Exception as e:
-    diag.log_error("Data loading failure", e)
-    st.error(f"❌ Error loading data: {str(e)}")
+    diag.log_error("Data engineering pipeline execution failure", e)
+    st.error(f"❌ Error in Data Pipeline: {str(e)}")
     st.info("💡 Try selecting different sectors, widening the date range, or picking fewer indices.")
     st.stop()
 
-# TAB 1: DATA CENTER
+# TAB 1: DATA CENTER & PIPELINE
 with tab_data:
-    st.subheader("📊 Sectoral Index Prices & Normalized Trends")
-    render_prices_chart(prices_df)
+    st.subheader("📊 Enterprise Financial Data Engineering & Quality Center")
     
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.subheader("🔥 Pearson Correlation Matrix")
+    # Dataset Metadata KPI Bar
+    col_d1, col_d2, col_d3, col_d4 = st.columns(4)
+    with col_d1:
+        st.metric("Total Observations", val_report["total_rows"])
+    with col_d2:
+        st.metric("Selected Sectors", len(selected_sectors))
+    with col_d3:
+        st.metric("Date Coverage", f"{prices_df.index[0].strftime('%Y-%m-%d')} to {prices_df.index[-1].strftime('%Y-%m-%d')}")
+    with col_d4:
+        val_status = "✅ CLEAN" if val_report["is_valid"] else "⚠️ WARNINGS"
+        st.metric("Data Quality Status", val_status)
+        
+    if val_report["warnings"]:
+        with st.expander("🔍 Inspect Data Validation Warnings"):
+            for w in val_report["warnings"]:
+                st.warning(w)
+
+    st.markdown("---")
+    
+    view_option = st.radio(
+        "Select Feature View", 
+        ["Base-100 Prices", "Log Returns", "Historical Drawdowns", "20d Rolling Volatility", "Pearson Correlation", "Descriptive Statistics"],
+        horizontal=True
+    )
+    
+    if view_option == "Base-100 Prices":
+        render_prices_chart(prices_df)
+    elif view_option == "Log Returns":
+        fig_ret = px.line(returns_df, x=returns_df.index, y=returns_df.columns, title="Sectoral Percentage Log Returns (%)")
+        fig_ret.update_layout(template="plotly_dark", height=450)
+        st.plotly_chart(fig_ret, use_container_width=True)
+    elif view_option == "Historical Drawdowns":
+        render_drawdowns_chart(features_dict["drawdowns"])
+    elif view_option == "20d Rolling Volatility":
+        render_rolling_volatility_chart(features_dict["volatility_20d"], window_label="20-Day")
+    elif view_option == "Pearson Correlation":
         corr_df = returns_df.corr()
         render_correlation_chart(corr_df)
-        
-    with col2:
-        st.subheader("📋 Econometric Descriptive Statistics")
+    elif view_option == "Descriptive Statistics":
         desc_stats = stats.get_descriptive_stats(returns_df)
         render_descriptive_table(desc_stats)
 

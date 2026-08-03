@@ -20,6 +20,34 @@ def render_prices_chart(prices_df):
     fig_prices.update_layout(template="plotly_dark", height=450)
     st.plotly_chart(fig_prices, use_container_width=True)
 
+def render_drawdowns_chart(drawdowns_df):
+    """
+    Renders peak-to-trough percentage drawdown chart.
+    """
+    fig_dd = px.line(
+        drawdowns_df,
+        x=drawdowns_df.index,
+        y=drawdowns_df.columns,
+        title="Sectoral Historical Drawdowns (%)",
+        labels={"value": "Drawdown (%)", "variable": "Sector"}
+    )
+    fig_dd.update_layout(template="plotly_dark", height=400)
+    st.plotly_chart(fig_dd, use_container_width=True)
+
+def render_rolling_volatility_chart(vol_df, window_label="20-Day"):
+    """
+    Renders rolling annualized volatility chart.
+    """
+    fig_vol = px.line(
+        vol_df,
+        x=vol_df.index,
+        y=vol_df.columns,
+        title=f"Annualized Rolling Volatility ({window_label} Window %)",
+        labels={"value": "Annualized Volatility (%)", "variable": "Sector"}
+    )
+    fig_vol.update_layout(template="plotly_dark", height=400)
+    st.plotly_chart(fig_vol, use_container_width=True)
+
 def render_correlation_chart(corr_df):
     """
     Renders Pearson correlation matrix heatmap.
