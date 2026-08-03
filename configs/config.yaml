@@ -1,0 +1,48 @@
+project:
+  name: "Q-RiskNet India"
+  version: "1.0.0"
+  description: "Quantile LSTM & Network Analytics for Volatility Spillovers in NSE India"
+
+data:
+  tickers:
+    "Nifty 50": "^NSEI"
+    "Nifty Bank": "^NSEBANK"
+    "Nifty IT": "^CNXIT"
+    "Nifty Pharma": "^CNXPHARMA"
+    "Nifty Auto": "^CNXAUTO"
+    "Nifty FMCG": "^CNXFMCG"
+    "Nifty Metal": "^CNXMETAL"
+    "Nifty Energy": "^CNXENERGY"
+    "Nifty Realty": "^CNXREALTY"
+    "Nifty Financial Services": "NIFTY_FIN_SERVICE.NS"
+  default_sectors:
+    - "Nifty 50"
+    - "Nifty Bank"
+    - "Nifty IT"
+    - "Nifty Pharma"
+    - "Nifty Auto"
+    - "Nifty FMCG"
+    - "Nifty Metal"
+
+models:
+  qvar:
+    default_lags: 2
+    default_quantile: 0.50
+  quantile_lstm:
+    default_seq_len: 5
+    default_epochs: 50
+    default_learning_rate: 0.01
+    early_stopping: true
+    patience: 5
+    hidden_dim: "auto"
+
+garch:
+  vol_model: "Garch"
+  p: 1
+  o: 1
+  q: 1
+  dist: "normal"
+
+girf:
+  default_horizon: 10
+  shock_std_multiplier: 2.0

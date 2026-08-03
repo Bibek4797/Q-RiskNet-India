@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  q-risknet-dashboard:
+    build: .
+    container_name: q_risknet_india
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+    restart: unless-stopped

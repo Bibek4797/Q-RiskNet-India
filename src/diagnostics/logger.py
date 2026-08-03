@@ -18,9 +18,7 @@ def log_event(level, message, elapsed_time=None):
         "traceback": None
     }
     
-    # Also print to standard output/console for backend visibility
     print(f"[{level}] {timestamp} - {message}{elapsed_str}")
-    
     st.session_state['diagnostics_logs'].append(log_entry)
 
 def log_info(message, elapsed_time=None):
@@ -68,5 +66,4 @@ class DiagnosticTimer:
             log_error(f"Failed operation: {self.operation_name} (Error: {exc_val})", exc_val)
         else:
             log_info(f"Completed operation: {self.operation_name}", elapsed)
-        # Return False to let any exceptions propagate, or we handle them in code
         return False
