@@ -50,9 +50,12 @@ def inject_custom_css():
             gap: 8px;
         }}
         .stTabs [data-baseweb="tab"] {{
-            height: 45px;
-            white-space: pre-wrap;
+            height: auto !important;
+            min-height: 48px;
+            white-space: normal !important;
             border-radius: 6px 6px 0px 0px;
+            padding-top: 8px;
+            padding-bottom: 8px;
             padding-left: 16px;
             padding-right: 16px;
             font-weight: 600;
