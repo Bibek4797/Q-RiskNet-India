@@ -50,6 +50,8 @@ class LSTMQuantileModel:
         self.stds = None
         
     def fit(self, df, progress_callback=None):
+        torch.manual_seed(42)
+        np.random.seed(42)
         self.columns = list(df.columns)
         K = len(self.columns)
         
