@@ -1,17 +1,18 @@
+"""
+Q-RiskNet India — Root Streamlit Application Entrypoint
+Copyright (c) 2026 Bibek Rout
+"""
 import os
 import sys
 
-# Add root directory to python path
-root_dir = os.path.dirname(os.path.abspath(__file__))
-if root_dir not in sys.path:
-    sys.path.insert(0, root_dir)
+# Ensure root directory is on python path for imports across modules
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
-dashboard_app = os.path.join(root_dir, "dashboard", "app.py")
+from dashboard.app import main
 
-with open(dashboard_app, "r", encoding="utf-8") as f:
-    code = f.read()
-
-exec(code, globals())
-
-
-
+if __name__ == "__main__":
+    main()
+else:
+    main()
