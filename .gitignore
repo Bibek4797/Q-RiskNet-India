@@ -67,6 +67,9 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/raw/raw_prices.csv
+!data/processed/processed_returns.csv
+
 outputs/*
 !outputs/.gitkeep
 models/*.pt

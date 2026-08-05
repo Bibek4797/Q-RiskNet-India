@@ -41,9 +41,14 @@ def fetch_raw_market_data(sectors, start_date, end_date, save_raw=True):
                 valid_cols = [s for s in sectors if s in close_prices.columns]
                 if valid_cols:
                     close_prices = close_prices[valid_cols]
-                    close_prices = close_prices.loc[str(start_date):str(end_date)]
-                    if not close_prices.empty:
-                        return close_prices
+                    start_dt = pd.to_datetime(start_date)
+                    end_dt = pd.to_datetime(end_date)
+                    close_prices = close_prices.loc[(close_prices.index >= start_dt) & (close_prices.index <= end_dt)]
+                    if close_prices.empty:
+                        # Fallback to returning full available dataset if date slice is out of range
+                        close_prices = pd.read_csv(raw_filepath, index_col=0, parse_dates=True)[valid_cols]
+                    return close_prices
+
             diag.log_error("Yahoo Finance returned empty dataset and no local fallback available.")
             raise ValueError("Yahoo Finance returned an empty dataset. Try selecting a different date range.")
 
