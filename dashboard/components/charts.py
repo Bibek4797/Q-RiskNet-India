@@ -10,7 +10,7 @@ import streamlit as st
 
 import src.visualization.plotly_plots as vis
 
-# Plotly configuration for static, stable charts (no accidental scroll-zoom or lost axes)
+# Plotly configuration — static, clean, no scroll-zoom
 CHART_CONFIG = {
     'scrollZoom': False,
     'displayModeBar': True,
@@ -19,14 +19,59 @@ CHART_CONFIG = {
     'doubleClick': 'reset'
 }
 
+# Premium colour palette for chart traces
+_PALETTE = [
+    '#818cf8', '#a78bfa', '#c084fc', '#fb7185', '#34d399',
+    '#38bdf8', '#fbbf24', '#f97316', '#e879f9', '#2dd4bf'
+]
+
+
+def _premium_layout(fig, height=None):
+    """Applies premium dark glassmorphism layout to any Plotly figure."""
+    h = height or 440
+    fig.update_layout(
+        height=h,
+        paper_bgcolor='rgba(13,21,38,0.0)',
+        plot_bgcolor='rgba(255,255,255,0.025)',
+        font=dict(family='Inter, sans-serif', size=12, color='#94a3b8'),
+        title=dict(
+            font=dict(family='Space Grotesk, sans-serif', size=15, color='#c7d2fe'),
+            x=0.0, xanchor='left', pad=dict(l=4, b=10)
+        ),
+        legend=dict(
+            bgcolor='rgba(13,21,38,0.7)',
+            bordercolor='rgba(99,102,241,0.3)',
+            borderwidth=1,
+            font=dict(size=11, color='#94a3b8'),
+            itemsizing='constant'
+        ),
+        margin=dict(l=10, r=10, t=48, b=10),
+        colorway=_PALETTE,
+    )
+    fig.update_xaxes(
+        fixedrange=True,
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(99,102,241,0.1)',
+        zeroline=False,
+        tickfont=dict(size=11, color='#64748b'),
+        linecolor='rgba(99,102,241,0.2)',
+    )
+    fig.update_yaxes(
+        fixedrange=True,
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(99,102,241,0.1)',
+        zeroline=False,
+        tickfont=dict(size=11, color='#64748b'),
+        linecolor='rgba(99,102,241,0.2)',
+    )
+    return fig
+
 
 def _render_plotly(fig, height=None):
-    """Internal helper to enforce fixed axes and dark template for static, clean chart rendering."""
-    if height is not None:
-        fig.update_layout(height=height)
-    fig.update_layout(template="plotly_dark")
-    fig.update_xaxes(fixedrange=True)
-    fig.update_yaxes(fixedrange=True)
+    """Applies premium layout and renders chart."""
+    fig = _premium_layout(fig, height)
     st.plotly_chart(fig, use_container_width=True, config=CHART_CONFIG)
 
 
