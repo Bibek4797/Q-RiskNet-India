@@ -35,6 +35,10 @@ def test_dashboard_pages_imports():
     import dashboard.pages.validation as validation
     import dashboard.pages.reports as reports
 
+    import dashboard.pages.overview as overview
+    import dashboard.pages.market_risk as market_risk
+    import dashboard.pages.portfolio_validation as portfolio_validation
+
     assert hasattr(home, "render_page")
     assert hasattr(about, "render_page")
     assert hasattr(data_center, "render_page")
@@ -46,6 +50,9 @@ def test_dashboard_pages_imports():
     assert hasattr(forecasting, "render_page")
     assert hasattr(validation, "render_page")
     assert hasattr(reports, "render_page")
+    assert hasattr(overview, "render_page")
+    assert hasattr(market_risk, "render_page")
+    assert hasattr(portfolio_validation, "render_page")
 
 
 def test_dashboard_utils_theme():

@@ -1,8 +1,6 @@
-Target_Sector,Model,Class,RMSE,MAE,Directional_Accuracy_Pct
-Bank,"ARIMA(1,0,1)",Classical / ML,0.9096,0.7436,52.94
-Bank,Quantile LSTM,Deep Learning,0.9192,0.7438,52.94
-Bank,Historical Mean,Classical / ML,0.9247,0.7711,52.94
-Bank,Support Vector Regression,Classical / ML,0.9411,0.7993,47.06
-Bank,Random Walk (Naive),Classical / ML,0.943,0.7821,0.0
-Bank,Random Forest Regressor,Classical / ML,0.9715,0.8272,47.06
-Bank,Gradient Boosting Regressor,Classical / ML,1.0331,0.8312,52.94
+Target_Sector,Model,Evaluation,RMSE,MAE,Directional_Accuracy_Pct,Pinball_Loss
+Bank,Support Vector Regression,Chronological Walk-Forward,1.2819,0.9703,53.85,0.4851
+Bank,"ARIMA(1,0,1)",Chronological Walk-Forward,1.3083,0.9728,50.0,0.4864
+Bank,Historical Mean,Chronological Walk-Forward,1.3174,0.9721,50.0,0.4861
+Bank,Quantile LSTM,Chronological Walk-Forward,1.3295,0.9946,50.0,0.4973
+Bank,Random Walk (Naive),Chronological Walk-Forward,1.3375,0.9707,0.0,0.4853

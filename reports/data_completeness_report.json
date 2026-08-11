@@ -1,0 +1,37 @@
+{
+    "start_date": "2021-08-05",
+    "end_date": "2026-07-31",
+    "total_observations": 1232,
+    "sectors_count": 7,
+    "sectors": [
+        "Nifty Auto",
+        "Nifty FMCG",
+        "Nifty IT",
+        "Nifty Metal",
+        "Nifty Pharma",
+        "Nifty Bank",
+        "Nifty 50"
+    ],
+    "validation": {
+        "total_rows": 1232,
+        "total_columns": 7,
+        "duplicate_timestamps": 0,
+        "duplicate_rows": 0,
+        "negative_prices": 0,
+        "invalid_zeros": 0,
+        "missing_values_by_column": {
+            "Nifty Auto": 16,
+            "Nifty FMCG": 16,
+            "Nifty IT": 1,
+            "Nifty Metal": 16,
+            "Nifty Pharma": 2,
+            "Nifty Bank": 1,
+            "Nifty 50": 0
+        },
+        "total_missing_values": 52,
+        "is_valid": true,
+        "warnings": [
+            "Dataset contains 52 missing (NaN) values."
+        ]
+    }
+}

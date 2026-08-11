@@ -1,7 +1,7 @@
 project:
   name: "Q-RiskNet India"
-  version: "1.0.0"
-  description: "Enterprise Quantile-LSTM Deep Learning & Financial Network Topology Platform for NSE India"
+  version: "1.1.0"
+  description: "Equation-by-Equation Quantile Risk, Spillover Connectedness, and Portfolio Risk Analytics Platform for NSE India"
 
 paths:
   raw_data: "data/raw"
@@ -39,7 +39,7 @@ data_pipeline:
   rolling_long_window: 60
   export_format: "csv"
   missing_tolerance_pct: 0.05
-  outlier_std_threshold: 4.0
+  # Note: Outliers are preserved raw for authentic tail-risk research
 
 models:
   qvar:
@@ -49,11 +49,20 @@ models:
     max_lags: 5
   quantile_lstm:
     default_seq_len: 5
-    default_epochs: 50
+    default_epochs: 40
     default_learning_rate: 0.01
     early_stopping: true
     patience: 5
     hidden_dim: "auto"
+    val_ratio: 0.15
+
+tail_risk:
+  confidence_levels: [0.95, 0.99]
+
+portfolio:
+  max_weight: 0.40
+  min_weight: 0.00
+  risk_free_rate: 0.06
 
 garch:
   vol_model: "Garch"
@@ -67,22 +76,13 @@ girf:
   shock_std_multiplier: 2.0
 
 dashboard:
-  page_title: "Q-RiskNet India | Volatility Spillover Dashboard"
-  page_icon: "📈"
+  page_title: "Q-RiskNet India | Systemic Risk Analytics Platform"
+  page_icon: "📡"
   layout: "wide"
   initial_sidebar_state: "expanded"
   theme:
-    primary_color: "#3b82f6"
-    secondary_color: "#8b5cf6"
-    background_color: "#0f172a"
-    card_background: "#1e293b"
-    text_color: "#f8fafc"
-    community_colors:
-      - "#3b82f6"
-      - "#ef4444"
-      - "#10b981"
-      - "#f59e0b"
-      - "#8b5cf6"
-      - "#ec4899"
-      - "#14b8a6"
-      - "#6366f1"
+    primary_color: "#6366f1"
+    secondary_color: "#a78bfa"
+    background_color: "#050914"
+    card_background: "#0d1526"
+    text_color: "#e2e8f0"

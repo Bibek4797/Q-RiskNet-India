@@ -1,3 +1,7 @@
+"""
+Q-RiskNet India — Plotly Network & Heatmap Visualization Utilities
+Copyright (c) 2026 Bibek Rout
+"""
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -10,6 +14,7 @@ COMMUNITY_COLORS = [
     "#3b82f6", "#ef4444", "#10b981", "#f59e0b", 
     "#8b5cf6", "#ec4899", "#14b8a6", "#6366f1"
 ]
+
 
 def render_spillover_network(spillover_df, communities=None, min_threshold_pct=2.0, layout_type="circular"):
     """
@@ -81,16 +86,18 @@ def render_spillover_network(spillover_df, communities=None, min_threshold_pct=2
         
         fig = go.Figure(data=edge_traces + [node_trace])
         fig.update_layout(
-            title=dict(text="Network Connectedness Graph", font=dict(size=18)),
+            title=dict(text="Network Connectedness Graph", font=dict(size=14, color='#94a3b8'), x=0.0, xanchor='left'),
             showlegend=False,
             hovermode='closest',
-            margin=dict(b=20, l=20, r=20, t=50),
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            margin=dict(b=20, l=20, r=20, t=44),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, autorange=True, fixedrange=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, autorange=True, fixedrange=False),
             template="plotly_dark",
-            height=600
+            height=600,
+            uirevision=f"net_graph_{layout_type}_{min_threshold_pct}"
         )
         return fig
+
 
 def render_mst_network(mst_graph, dist_matrix):
     """
@@ -137,15 +144,17 @@ def render_mst_network(mst_graph, dist_matrix):
         
         fig = go.Figure(data=[edge_trace, node_trace])
         fig.update_layout(
-            title=dict(text="Minimum Spanning Tree (MST) Risk Backbone", font=dict(size=18)),
+            title=dict(text="Minimum Spanning Tree (MST) Risk Backbone", font=dict(size=14, color='#94a3b8'), x=0.0, xanchor='left'),
             showlegend=False,
-            margin=dict(b=20, l=20, r=20, t=50),
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            margin=dict(b=20, l=20, r=20, t=44),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, autorange=True, fixedrange=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, autorange=True, fixedrange=False),
             template="plotly_dark",
-            height=550
+            height=550,
+            uirevision="mst_graph"
         )
         return fig
+
 
 def render_correlation_heatmap(corr_df):
     """
@@ -159,5 +168,11 @@ def render_correlation_heatmap(corr_df):
         zmax=1.0,
         title="Sectoral Pearson Correlation Matrix"
     )
-    fig.update_layout(template="plotly_dark", height=500)
+    fig.update_layout(
+        template="plotly_dark", height=500,
+        title=dict(font=dict(size=14, color='#94a3b8'), x=0.0, xanchor='left'),
+        xaxis=dict(autorange=True, fixedrange=False),
+        yaxis=dict(autorange=True, fixedrange=False),
+        uirevision="corr_heatmap"
+    )
     return fig

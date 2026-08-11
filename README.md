@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/)
 [![CI Pipeline](https://github.com/Bibek4797/Q-RiskNet-India/actions/workflows/ci.yml/badge.svg)](https://github.com/Bibek4797/Q-RiskNet-India/actions/workflows/ci.yml)
-[![Tests: 34 Passed](https://img.shields.io/badge/Tests-34%20Passed-success.svg)](tests/)
+[![Tests: 37 Passed](https://img.shields.io/badge/Tests-37%20Passed-success.svg)](tests/)
 
 > **An Enterprise Quantitative Finance Platform for Measuring, Forecasting, and Visualizing Sectoral Tail-Risk Spillovers, Asymmetric Volatility, and Financial Network Topology across National Stock Exchange (NSE) Indices in India.**
 

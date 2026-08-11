@@ -1,3 +1,7 @@
+"""
+Q-RiskNet India — Benchmark Forecasting Models & Evaluation Metrics
+Copyright (c) 2026 Bibek Rout
+"""
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
@@ -6,7 +10,7 @@ from sklearn.svm import SVR
 from scipy.stats import norm
 
 import src.diagnostics.logger as diag
-from src.models.quantile_lstm import LSTMQuantileModel
+
 
 class RandomWalkModel:
     """Naive Random Walk forecast: return = 0.0"""
@@ -17,6 +21,7 @@ class RandomWalkModel:
     def predict(self, X_eval):
         return np.zeros(len(X_eval))
 
+
 class HistoricalMeanModel:
     """Historical Mean forecast: return = mean(y_train)"""
     def __init__(self):
@@ -26,11 +31,13 @@ class HistoricalMeanModel:
     def predict(self, X_eval):
         return np.full(len(X_eval), self.mean_val)
 
+
 class ARIMABenchmarkModel:
     """ARIMA(1,0,1) classical econometric benchmark model"""
     def __init__(self, order=(1, 0, 1)):
         self.order = order
         self.mean_val = 0.0
+        self.res = None
     def fit(self, y):
         self.mean_val = float(np.mean(y))
         try:
@@ -47,9 +54,10 @@ class ARIMABenchmarkModel:
                 pass
         return np.full(len(X_eval), self.mean_val)
 
+
 class RandomForestBenchmarkModel:
     """Random Forest Regressor ML benchmark"""
-    def __init__(self, n_estimators=100, max_depth=5):
+    def __init__(self, n_estimators=50, max_depth=4):
         self.model = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42)
     def fit(self, X, y):
         self.model.fit(X, y)
@@ -58,16 +66,16 @@ class RandomForestBenchmarkModel:
     def feature_importances(self, feature_names):
         return pd.Series(self.model.feature_importances_, index=feature_names)
 
+
 class GradientBoostingBenchmarkModel:
     """Gradient Boosting Regressor ML benchmark"""
-    def __init__(self, n_estimators=100, max_depth=3, learning_rate=0.05):
+    def __init__(self, n_estimators=50, max_depth=3, learning_rate=0.05):
         self.model = GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42)
     def fit(self, X, y):
         self.model.fit(X, y)
     def predict(self, X):
         return self.model.predict(X)
-    def feature_importances(self, feature_names):
-        return pd.Series(self.model.feature_importances_, index=feature_names)
+
 
 class SVRBenchmarkModel:
     """Support Vector Regression (RBF Kernel) ML benchmark"""
@@ -78,9 +86,20 @@ class SVRBenchmarkModel:
     def predict(self, X):
         return self.model.predict(X)
 
-def calculate_forecast_metrics(y_true, y_pred):
+
+def calculate_pinball_loss(y_true, y_pred, quantile=0.50):
     """
-    Computes RMSE, MAE, and Directional Accuracy (%)
+    Computes out-of-sample Quantile Pinball Loss:
+    L_tau(y, y_hat) = mean( max( (tau - 1)*(y - y_hat), tau*(y - y_hat) ) )
+    """
+    error = np.array(y_true) - np.array(y_pred)
+    loss = np.maximum((quantile - 1.0) * error, quantile * error)
+    return float(np.mean(loss))
+
+
+def calculate_forecast_metrics(y_true, y_pred, quantile=0.50):
+    """
+    Computes RMSE, MAE, Directional Accuracy (%), and Quantile Pinball Loss.
     """
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
@@ -91,12 +110,15 @@ def calculate_forecast_metrics(y_true, y_pred):
     sign_true = np.sign(y_true)
     sign_pred = np.sign(y_pred)
     dir_acc = np.mean(sign_true == sign_pred) * 100.0
+    pinball = calculate_pinball_loss(y_true, y_pred, quantile=quantile)
 
     return {
         "RMSE": round(float(rmse), 4),
         "MAE": round(float(mae), 4),
-        "Directional_Accuracy_Pct": round(float(dir_acc), 2)
+        "Directional_Accuracy_Pct": round(float(dir_acc), 2),
+        "Pinball_Loss": round(float(pinball), 4)
     }
+
 
 def diebold_mariano_test(e1, e2, h=1):
     """
@@ -120,6 +142,7 @@ def diebold_mariano_test(e1, e2, h=1):
         "dm_stat": round(float(dm_stat), 4),
         "p_value": round(float(p_val), 4)
     }
+
 
 def create_lagged_features(returns_df, target_sector, lags=5):
     """

@@ -1,5 +1,5 @@
 """
-Q-RiskNet India — Premium Sidebar Navigation
+Q-RiskNet India — Sidebar Navigation & Controls
 Copyright (c) 2026 Bibek Rout
 """
 from datetime import datetime, timedelta
@@ -9,111 +9,97 @@ from src.config.settings import TICKER_MAP, MODEL_CFG, GIRF_CFG
 
 def render_sidebar():
     """
-    Renders the premium sidebar with navigation and configuration controls.
-    Returns the configuration dictionary.
+    Renders clean sidebar navigation and controls.
+    Returns configuration dictionary.
     """
-    # ── Brand Header ───────────────────────────────────────────────────
+    # ── Brand ──────────────────────────────────────────────────────────
     st.sidebar.markdown("""
-    <div style='text-align:center; padding: 18px 0 12px;'>
-        <div style='font-size:2.4rem; margin-bottom:6px;'>📡</div>
-        <div style='font-family:"Space Grotesk",sans-serif; font-size:1.15rem; font-weight:700;
-                    background:linear-gradient(135deg,#818cf8,#a78bfa); -webkit-background-clip:text;
-                    -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:-0.01em;'>
-            Q-RiskNet India
-        </div>
-        <div style='font-size:0.7rem; color:#475569; text-transform:uppercase;
-                    letter-spacing:0.1em; margin-top:2px;'>Risk Analytics Platform</div>
+    <div style='padding: 10px 4px 8px;'>
+        <div style='font-family:"Space Grotesk",sans-serif; font-size:1.05rem; font-weight:700;
+                    color:#c7d2fe;'>Q-RiskNet India</div>
+        <div style='font-size:0.68rem; color:#475569; text-transform:uppercase;
+                    letter-spacing:0.08em; margin-top:2px;'>Systemic Risk Analytics</div>
     </div>
-    <div style='height:1px; background:linear-gradient(90deg,transparent,rgba(99,102,241,0.5),transparent);
-                margin-bottom:16px;'></div>
+    <div style='height:1px; background:rgba(99,102,241,0.18); margin-bottom:14px;'></div>
     """, unsafe_allow_html=True)
 
     # ── Navigation ─────────────────────────────────────────────────────
     st.sidebar.markdown(
-        "<div style='font-size:0.7rem; font-weight:700; color:#475569; text-transform:uppercase;"
-        "letter-spacing:0.1em; margin-bottom:8px; padding-left:2px;'>Navigation</div>",
+        "<div style='font-size:0.67rem; font-weight:700; color:#334155; text-transform:uppercase;"
+        "letter-spacing:0.09em; margin-bottom:6px;'>Navigation</div>",
         unsafe_allow_html=True
     )
 
     page_choice = st.sidebar.radio(
-        "Select Module",
+        "Section",
         [
-            "🏠 Home",
-            "📊 Data Center",
-            "🔬 Econometric Diagnostics",
-            "📈 Volatility Modelling",
-            "📊 QVAR Analysis",
-            "🌊 Connectedness & Spillover",
-            "🕸️ Network Topology",
-            "🔮 Forecasting Benchmark",
-            "🔬 Research Validation",
-            "📋 Reports Center",
-            "ℹ️ About"
+            "🏠 Overview",
+            "📈 Market & Risk",
+            "🌊 Connectedness",
+            "🕸️ Network",
+            "💼 Portfolio & Validation"
         ],
         index=0,
         label_visibility="collapsed"
     )
 
-    # ── Divider ────────────────────────────────────────────────────────
     st.sidebar.markdown(
-        "<div style='height:1px; background:linear-gradient(90deg,transparent,rgba(99,102,241,0.3),transparent);"
-        "margin:14px 0;'></div>",
+        "<div style='height:1px; background:rgba(99,102,241,0.15); margin:12px 0;'></div>",
         unsafe_allow_html=True
     )
 
-    # ── Data Configuration ─────────────────────────────────────────────
+    # ── Data ───────────────────────────────────────────────────────────
     st.sidebar.markdown(
-        "<div style='font-size:0.7rem; font-weight:700; color:#475569; text-transform:uppercase;"
-        "letter-spacing:0.1em; margin-bottom:8px; padding-left:2px;'>Data Configuration</div>",
+        "<div style='font-size:0.67rem; font-weight:700; color:#334155; text-transform:uppercase;"
+        "letter-spacing:0.09em; margin-bottom:6px;'>Data</div>",
         unsafe_allow_html=True
     )
 
     selected_sectors = st.sidebar.multiselect(
-        "Sectoral Indices",
+        "Sectors",
         options=list(TICKER_MAP.keys()),
         default=list(TICKER_MAP.keys())[:7],
-        help="Select NSE sectoral indices to include in analysis"
+        help="NSE sectoral indices to include in the analysis"
     )
 
     today = datetime.today()
     five_years_ago = today - timedelta(days=5 * 365)
-    start_date = st.sidebar.date_input("Start Date", value=five_years_ago)
-    end_date = st.sidebar.date_input("End Date", value=today)
+    start_date = st.sidebar.date_input("Start date", value=five_years_ago)
+    end_date = st.sidebar.date_input("End date", value=today)
 
     if start_date >= end_date:
-        st.sidebar.error("⚠️ Start Date must be earlier than End Date.")
+        st.sidebar.error("Start date must be before end date.")
+
+    st.sidebar.markdown(
+        "<div style='height:1px; background:rgba(99,102,241,0.15); margin:12px 0;'></div>",
+        unsafe_allow_html=True
+    )
 
     # ── Model Parameters ───────────────────────────────────────────────
     st.sidebar.markdown(
-        "<div style='height:1px; background:linear-gradient(90deg,transparent,rgba(99,102,241,0.3),transparent);"
-        "margin:14px 0;'></div>",
-        unsafe_allow_html=True
-    )
-    st.sidebar.markdown(
-        "<div style='font-size:0.7rem; font-weight:700; color:#475569; text-transform:uppercase;"
-        "letter-spacing:0.1em; margin-bottom:8px; padding-left:2px;'>Model Parameters</div>",
+        "<div style='font-size:0.67rem; font-weight:700; color:#334155; text-transform:uppercase;"
+        "letter-spacing:0.09em; margin-bottom:6px;'>Model Parameters</div>",
         unsafe_allow_html=True
     )
 
     lags = st.sidebar.slider(
-        "Autoregressive Lags (p)",
+        "Lag order (p)",
         min_value=1, max_value=5,
         value=MODEL_CFG.get("qvar", {}).get("default_lags", 2),
-        help="Number of lags for the QVAR model"
+        help="Number of lagged periods used in the quantile VAR model. Higher values capture longer-range dependencies."
     )
     forecast_horizon = st.sidebar.slider(
-        "Forecast Horizon (H)",
+        "Spillover horizon (days)",
         min_value=5, max_value=30,
         value=GIRF_CFG.get("default_horizon", 10),
-        help="GIRF / spillover decomposition horizon"
+        help="Number of days ahead over which impulse responses and spillover percentages are accumulated."
     )
 
     # ── Footer ─────────────────────────────────────────────────────────
     st.sidebar.markdown(
-        "<div style='height:1px; background:linear-gradient(90deg,transparent,rgba(99,102,241,0.3),transparent);"
-        "margin:14px 0;'></div>"
-        "<div style='font-size:0.68rem; color:#334155; text-align:center; padding:4px 0 8px;'>"
-        "© 2026 Bibek Rout &nbsp;·&nbsp; MIT License"
+        "<div style='height:1px; background:rgba(99,102,241,0.15); margin:12px 0;'></div>"
+        "<div style='font-size:0.67rem; color:#334155; text-align:center; padding:4px 0;'>"
+        "© 2026 Bibek Rout · MIT License"
         "</div>",
         unsafe_allow_html=True
     )

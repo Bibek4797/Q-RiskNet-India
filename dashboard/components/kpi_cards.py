@@ -1,5 +1,5 @@
 """
-Q-RiskNet India — Premium KPI Cards Component
+Q-RiskNet India — KPI Cards Component
 Copyright (c) 2026 Bibek Rout
 """
 import streamlit as st
@@ -7,72 +7,65 @@ import streamlit as st
 
 def render_kpi_cards(metrics):
     """
-    Renders premium glassmorphism KPI cards for TCI, Top Systemic Transmitter,
-    and Top Risk Receiver.
+    Renders clean KPI cards for TCI, Top Risk Transmitter, and Top Risk Receiver.
+    Consistent semantic color: red for transmitter (exporting risk), green for receiver (absorbing risk).
     """
     tci_val = metrics['TCI']
-    max_transmitter = metrics['NET'].idxmax()
-    max_receiver = metrics['NET'].idxmin()
-    net_out = metrics['NET'][max_transmitter]
-    net_in = metrics['NET'][max_receiver]
+    net_series = metrics['NET']
+    max_transmitter = net_series.idxmax()
+    max_receiver = net_series.idxmin()
+    net_out = net_series[max_transmitter]
+    net_in = net_series[max_receiver]
 
-    # Colour-code TCI: green < 40, amber 40-65, red > 65
+    # Semantic TCI color: green < 40%, amber 40–65%, red > 65%
     if tci_val < 40:
-        tci_colour = "#22c55e"
-        tci_label = "Low Connectedness"
+        tci_color = "#22c55e"
+        tci_label = "Low — sectors are relatively independent"
     elif tci_val < 65:
-        tci_colour = "#f59e0b"
-        tci_label = "Moderate Connectedness"
+        tci_color = "#f59e0b"
+        tci_label = "Moderate — meaningful cross-sector risk sharing"
     else:
-        tci_colour = "#ef4444"
-        tci_label = "High Connectedness"
+        tci_color = "#ef4444"
+        tci_label = "High — shocks spread rapidly across sectors"
 
-    col_m1, col_m2, col_m3 = st.columns(3, gap="medium")
+    col1, col2, col3 = st.columns(3, gap="medium")
 
-    with col_m1:
+    with col1:
         st.markdown(f"""
-        <div style='background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));
-                    border:1px solid rgba(99,102,241,0.28);border-radius:14px;padding:20px 22px;
-                    position:relative;overflow:hidden;'>
-            <div style='position:absolute;top:0;left:0;right:0;height:2px;
-                        background:linear-gradient(90deg,#6366f1,#a78bfa);'></div>
-            <div style='font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;
-                        letter-spacing:0.09em;margin-bottom:8px;'>Total Connectedness Index</div>
-            <div style='font-family:"Space Grotesk",sans-serif;font-size:2.2rem;font-weight:700;
-                        color:{tci_colour};line-height:1;'>{tci_val:.2f}%</div>
-            <div style='font-size:0.78rem;color:{tci_colour};opacity:0.75;margin-top:6px;
-                        font-weight:500;'>{tci_label}</div>
+        <div style='background:rgba(255,255,255,0.025); border:1px solid rgba(99,102,241,0.2);
+                    border-radius:10px; padding:16px 18px;'>
+            <div style='font-size:0.68rem; font-weight:700; color:#475569; text-transform:uppercase;
+                        letter-spacing:0.09em; margin-bottom:8px;'>
+                Systemic Connectedness (TCI)
+            </div>
+            <div style='font-family:"Space Grotesk",sans-serif; font-size:2rem; font-weight:700;
+                        color:{tci_color}; line-height:1;'>{tci_val:.1f}%</div>
+            <div style='font-size:0.75rem; color:{tci_color}; opacity:0.8; margin-top:5px;'>{tci_label}</div>
         </div>
         """, unsafe_allow_html=True)
 
-    with col_m2:
+    with col2:
         st.markdown(f"""
-        <div style='background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(255,255,255,0.02));
-                    border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:20px 22px;
-                    position:relative;overflow:hidden;'>
-            <div style='position:absolute;top:0;left:0;right:0;height:2px;
-                        background:linear-gradient(90deg,#ef4444,#f97316);'></div>
-            <div style='font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;
-                        letter-spacing:0.09em;margin-bottom:8px;'>Top Risk Transmitter</div>
-            <div style='font-family:"Space Grotesk",sans-serif;font-size:1.6rem;font-weight:700;
-                        color:#fca5a5;line-height:1.15;'>{max_transmitter}</div>
-            <div style='font-size:0.78rem;color:#f87171;margin-top:6px;font-weight:500;'>
-                ↑ +{net_out:.2f}% Net Outflow</div>
+        <div style='background:rgba(239,68,68,0.03); border:1px solid rgba(239,68,68,0.18);
+                    border-radius:10px; padding:16px 18px;'>
+            <div style='font-size:0.68rem; font-weight:700; color:#475569; text-transform:uppercase;
+                        letter-spacing:0.09em; margin-bottom:8px;'>Top Risk Transmitter</div>
+            <div style='font-family:"Space Grotesk",sans-serif; font-size:1.5rem; font-weight:700;
+                        color:#fca5a5; line-height:1.2;'>{max_transmitter}</div>
+            <div style='font-size:0.75rem; color:#f87171; margin-top:5px;'>
+                +{net_out:.1f}% net outflow</div>
         </div>
         """, unsafe_allow_html=True)
 
-    with col_m3:
+    with col3:
         st.markdown(f"""
-        <div style='background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(255,255,255,0.02));
-                    border:1px solid rgba(34,197,94,0.25);border-radius:14px;padding:20px 22px;
-                    position:relative;overflow:hidden;'>
-            <div style='position:absolute;top:0;left:0;right:0;height:2px;
-                        background:linear-gradient(90deg,#22c55e,#10b981);'></div>
-            <div style='font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;
-                        letter-spacing:0.09em;margin-bottom:8px;'>Top Risk Receiver</div>
-            <div style='font-family:"Space Grotesk",sans-serif;font-size:1.6rem;font-weight:700;
-                        color:#86efac;line-height:1.15;'>{max_receiver}</div>
-            <div style='font-size:0.78rem;color:#4ade80;margin-top:6px;font-weight:500;'>
-                ↓ {net_in:.2f}% Net Inflow</div>
+        <div style='background:rgba(34,197,94,0.03); border:1px solid rgba(34,197,94,0.18);
+                    border-radius:10px; padding:16px 18px;'>
+            <div style='font-size:0.68rem; font-weight:700; color:#475569; text-transform:uppercase;
+                        letter-spacing:0.09em; margin-bottom:8px;'>Top Risk Receiver</div>
+            <div style='font-family:"Space Grotesk",sans-serif; font-size:1.5rem; font-weight:700;
+                        color:#86efac; line-height:1.2;'>{max_receiver}</div>
+            <div style='font-size:0.75rem; color:#4ade80; margin-top:5px;'>
+                {net_in:.1f}% net inflow</div>
         </div>
         """, unsafe_allow_html=True)

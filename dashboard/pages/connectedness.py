@@ -1,12 +1,11 @@
 """
-Q-RiskNet India — Connectedness & Spillover Page
+Q-RiskNet India — Connectedness & Systemic Risk Flow Section
 Copyright (c) 2026 Bibek Rout
 """
 import streamlit as st
 import pandas as pd
 
 import src.models.qvar as qvar
-import src.models.quantile_lstm as qlstm
 import src.forecasting.girf as girf
 import src.econometrics.garch as garch
 import src.diagnostics.logger as diag
@@ -16,108 +15,155 @@ from dashboard.components.tables import render_spillover_matrix_table
 from dashboard.components.exports import download_csv
 
 
+# ── Regime label helper ───────────────────────────────────────────────────────
+def _regime_label(q: float) -> str:
+    if q <= 0.10:
+        return "Downside / tail-risk conditions"
+    elif q <= 0.25:
+        return "Below-median market conditions"
+    elif q <= 0.40:
+        return "Mild-downside market conditions"
+    elif q <= 0.60:
+        return "Normal / median market conditions"
+    elif q <= 0.75:
+        return "Mild-upside market conditions"
+    elif q <= 0.90:
+        return "Above-median market conditions"
+    else:
+        return "Bullish / upper-tail market conditions"
+
+
 def render_page(model_input, returns_df, cfg):
-    """Renders the Connectedness & Spillover page."""
+    """Renders the Connectedness section with user-friendly risk flow labels."""
 
-    st.header("🌊 Dynamic Connectedness & Systemic Risk Transmission")
-    st.caption("Diebold-Yilmaz GFEVD-based directional spillovers, Total Connectedness Index (TCI), "
-               "and dynamic rolling-window TCI analysis.")
+    st.markdown("### Systemic Risk Flow & Connectedness")
+    st.caption("Measure how much risk each sector transmits to or receives from others. High connectedness signals that shocks will spread rapidly across the market.")
 
-    conn_tab, tci_tab = st.tabs(["📊 Static Connectedness", "🕒 Dynamic Rolling TCI"])
+    # ── Show cached results if available (no forced rerun) ─────────────
+    metrics = st.session_state.get("metrics")
+    spill_df = st.session_state.get("spillover_df")
 
-    # ── Static Connectedness ──────────────────────────────────────────
+    # Display active model badge if exists
+    active_label = st.session_state.get("active_model_label")
+    if active_label:
+        st.caption(f"Showing: {active_label}")
+
+    # KPI summary (from cached results or after computation)
+    if metrics is not None:
+        render_kpi_cards(metrics)
+        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+
+    conn_tab, tci_tab = st.tabs(["Spillover Map", "Connectedness Over Time"])
+
+    # ── Tab 1: Spillover Map ──────────────────────────────────────────
     with conn_tab:
-        st.subheader("⚙️ Spillover Model Controls")
-
-        c1, c2, c3 = st.columns(3)
+        # Controls — clean single row
+        c1, c2, c3 = st.columns([2, 2, 1])
         with c1:
-            model_choice = st.radio("Model Architecture", ["Quantile VAR (QVAR)", "Quantile LSTM"],
-                                    horizontal=True, key="conn_model_choice")
+            vol_proxy = st.selectbox(
+                "Risk input",
+                ["Log Returns", "Conditional Volatility (GJR-GARCH)"],
+                key="conn_vol_proxy",
+                help="Choose whether to model spillovers in raw log-return space or in estimated conditional volatility space."
+            )
         with c2:
-            vol_proxy = st.selectbox("Data Series / Risk Proxy", ["Log Returns", "GARCH(1,1) Volatility"],
-                                     key="conn_vol_proxy")
+            quantile = st.select_slider(
+                "Market regime (τ)",
+                options=[0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95],
+                value=0.50,
+                key="conn_tau"
+            )
         with c3:
-            quantile = st.slider("Quantile Value (τ)", 0.01, 0.99, 0.50, 0.01, key="conn_tau")
+            run_btn = st.button("Run Analysis", type="primary", key="run_spill")
 
-        # Compute volatility proxy data input if requested
-        if vol_proxy == "GARCH(1,1) Volatility":
+        st.caption(f"τ = {quantile:.2f} — {_regime_label(quantile)}. Lower quantiles capture tail/downside risk spillovers.")
+
+        # Prepare input data
+        if vol_proxy == "Conditional Volatility (GJR-GARCH)":
             garch_cols = {}
             for col in returns_df.columns:
-                garch_cols[col] = garch.estimate_garch_volatility(returns_df[col])
+                try:
+                    garch_cols[col] = garch.estimate_garch_volatility(returns_df[col])
+                except Exception:
+                    garch_cols[col] = returns_df[col]
             active_input = pd.DataFrame(garch_cols, index=returns_df.index).dropna()
         else:
             active_input = returns_df.copy()
 
-        st.markdown(f"**Selected Model**: `{model_choice}` at $\\tau={quantile:.2f}$ using `{vol_proxy}`")
+        # Run analysis
+        if run_btn:
+            try:
+                with st.spinner("Fitting quantile model and computing spillovers…"):
+                    m = qvar.QVARModel(p=cfg["lags"], quantile=quantile)
+                    m.fit(active_input)
+                    spill_df = girf.compute_spillover_matrix(m, active_input, horizon=cfg["forecast_horizon"])
+                    metrics = girf.calculate_connectedness_metrics(spill_df)
+                    st.session_state["spillover_df"] = spill_df
+                    st.session_state["metrics"] = metrics
+                    st.session_state["active_model_label"] = (
+                        f"QVAR (τ={quantile:.2f}, {_regime_label(quantile)}, {vol_proxy})"
+                    )
+                st.rerun()
+            except Exception as e:
+                diag.log_error("Model fitting failure", e)
+                st.error(f"Error during model fitting: {str(e)}")
+                return
 
-        run_btn = st.button("🚀 Calculate Spillovers", type="primary", key="run_spill")
+        # Display results
+        if spill_df is not None and metrics is not None:
+            st.markdown("---")
 
-        if run_btn or st.session_state.get("spillover_df") is not None:
-            if run_btn:
-                try:
-                    progress = st.progress(0, text="Fitting model…")
+            # Risk flow charts
+            render_spillover_charts(metrics)
 
-                    def _progress(c, t):
-                        progress.progress(int(c / t * 100), f"Epoch {c}/{t}…")
+            # Spillover matrix
+            st.markdown("**Directional Risk Flow Matrix (%)**")
+            st.caption("How much of each sector's forecast variance is explained by shocks from other sectors. Rows = receiving sector. Columns = transmitting sector.")
+            render_spillover_matrix_table(spill_df, metrics)
 
-                    if model_choice == "Quantile VAR (QVAR)":
-                        m = qvar.QVARModel(p=cfg["lags"], quantile=quantile)
-                        m.fit(active_input)
-                    else:
-                        m = qlstm.LSTMQuantileModel(
-                            seq_len=cfg.get("seq_len", 5),
-                            hidden_dim=cfg.get("hidden_dim", "auto"),
-                            quantile=quantile,
-                            epochs=cfg.get("epochs", 30),
-                            early_stopping=True, patience=5
-                        )
-                        m.fit(active_input, progress_callback=_progress)
+            with st.expander("Download results"):
+                download_csv(spill_df, "risk_spillover_matrix.csv", key="dl_spill")
 
-                    progress.progress(100, "Computing GIRF spillovers…")
-                    spill = girf.compute_spillover_matrix(m, active_input, horizon=cfg["forecast_horizon"])
-                    met = girf.calculate_connectedness_metrics(spill)
-                    st.session_state["spillover_df"] = spill
-                    st.session_state["metrics"] = met
-                    st.session_state["active_model_label"] = f"{model_choice} (τ={quantile:.2f}, {vol_proxy})"
-                    progress.empty()
-                except Exception as e:
-                    diag.log_error("Model fitting failure", e)
-                    st.error(f"❌ Error during model fitting: {str(e)}")
-                    return
+            with st.expander("Advanced QVAR details"):
+                st.markdown("""
+**Method:** Equation-by-equation multi-quantile VAR framework. Each sector's returns are
+regressed on lagged returns of all sectors at quantile τ using quantile regression.
 
-            spill_df = st.session_state.get("spillover_df")
-            metrics = st.session_state.get("metrics")
-            model_label = st.session_state.get("active_model_label", f"{model_choice} (τ={quantile:.2f})")
+**Spillover computation:** GIRF (Generalized Impulse Response Function) simulations apply a
++2σ shock to each transmitting sector and measure forecast error variance absorbed by each
+receiving sector over the specified horizon H.
 
-            if spill_df is not None and metrics is not None:
-                st.markdown("---")
-                st.info(f"Showing results for: **{model_label}**")
-                render_kpi_cards(metrics)
-                st.markdown("---")
-                render_spillover_charts(metrics)
-                st.subheader("Diebold-Yilmaz Spillover Matrix (%)")
-                render_spillover_matrix_table(spill_df, metrics)
+**Metric interpretation:**
+- **TCI (Systemic Connectedness):** Fraction of the total forecast variance explained by
+  cross-sector spillovers (higher = more interconnected).
+- **Risk Transmitted:** Sum of all risk exported to other sectors.
+- **Risk Received:** Sum of all risk imported from other sectors.
+- **Net Risk Flow:** Transmitted minus Received. Positive = net transmitter.
+                """)
+        elif not run_btn:
+            st.info("Click **Run Analysis** to compute directional risk spillovers.")
 
-                with st.expander("📥 Export Spillover Matrix"):
-                    download_csv(spill_df, "spillover_matrix.csv", key="dl_spill")
-
-    # ── Dynamic Rolling TCI ───────────────────────────────────────────
+    # ── Tab 2: Connectedness Over Time ────────────────────────────────
     with tci_tab:
-        st.subheader("🕒 Dynamic Time-Varying TCI")
+        st.caption("Shows how systemic connectedness changes over time. High periods indicate market stress when shocks spread across all sectors simultaneously.")
+
         cr1, cr2 = st.columns(2)
         with cr1:
-            win = st.slider("Window Size (days)", 60, 500, 200, 20)
+            win = st.slider("Rolling window (trading days)", 60, 500, 200, 20,
+                            help="Length of each estimation window")
         with cr2:
-            step = st.slider("Step Size (days)", 5, 60, 20, 5)
+            step = st.slider("Step size (days)", 5, 60, 20, 5,
+                             help="How many days the window advances at each step")
 
-        run_roll = st.button("🔄 Compute Rolling TCI", key="run_roll")
+        run_roll = st.button("Compute Rolling Connectedness", key="run_roll")
+
         if run_roll:
-            if len(returns_df) < win:
-                st.error(f"Data length ({len(returns_df)}) < window ({win}). Reduce window.")
+            if returns_df is None or len(returns_df) < win:
+                st.error(f"Not enough data ({len(returns_df) if returns_df is not None else 0} obs) for window size {win}. Reduce window size or increase date range.")
             else:
                 dates, tci_vals = [], []
-                total = (len(returns_df) - win) // step + 1
-                bar = st.progress(0, "Rolling TCI…")
+                total = max(1, (len(returns_df) - win) // step + 1)
+                bar = st.progress(0, text="Computing rolling risk flow… (this may take a few minutes)")
                 for idx, i in enumerate(range(0, len(returns_df) - win + 1, step)):
                     sub = returns_df.iloc[i:i + win]
                     try:
@@ -129,9 +175,28 @@ def render_page(model_input, returns_df, cfg):
                         tci_vals.append(rm_met["TCI"])
                     except Exception:
                         pass
-                    bar.progress(int((idx + 1) / total * 100), f"Window {idx + 1}/{total}")
+                    bar.progress(int((idx + 1) / total * 100), f"Window {idx + 1} of {total}")
                 bar.empty()
                 if dates:
                     roll_df = pd.DataFrame({"Date": dates, "Rolling TCI (%)": tci_vals}).set_index("Date")
-                    render_rolling_tci_chart(roll_df, win, step)
-                    download_csv(roll_df, "rolling_tci.csv", key="dl_rtci")
+                    st.session_state["rolling_tci_df"] = roll_df
+                    st.session_state["rolling_tci_win"] = win
+                    st.session_state["rolling_tci_step"] = step
+                else:
+                    st.warning("No windows completed successfully. Try different parameters.")
+
+        roll_df = st.session_state.get("rolling_tci_df")
+        if roll_df is not None:
+            c_rt1, c_rt2 = st.columns([4, 1])
+            with c_rt1:
+                st.markdown("**Rolling Systemic Connectedness (TCI)**")
+            with c_rt2:
+                if st.button("↺ Reset view", key="btn_reset_rolling_tci"):
+                    st.session_state["key_rolling_tci"] = st.session_state.get("key_rolling_tci", 0) + 1
+
+            win_val = st.session_state.get("rolling_tci_win", win)
+            step_val = st.session_state.get("rolling_tci_step", step)
+            chart_key = f"rolling_tci_{st.session_state.get('key_rolling_tci', 0)}"
+            render_rolling_tci_chart(roll_df, win_val, step_val, key=chart_key)
+            with st.expander("Download rolling TCI"):
+                download_csv(roll_df, "rolling_systemic_connectedness.csv", key="dl_rtci")
