@@ -94,4 +94,4 @@ graph TD
 
 ## ⚙️ Configuration Management
 
-Central settings are defined in [`configs/config.yaml`](file:///c:/Users/BIBEK/OneDrive/Desktop/Indian_Stock_Market_Analysis/configs/config.yaml) and exported via [`src/config/settings.py`](file:///c:/Users/BIBEK/OneDrive/Desktop/Indian_Stock_Market_Analysis/src/config/settings.py). All file paths are strictly relative to the repository root directory.
+Central settings are defined in [`configs/config.yaml`](../configs/config.yaml) and exported via [`src/config/settings.py`](../src/config/settings.py). All file paths are strictly relative to the repository root directory.
