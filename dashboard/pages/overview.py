@@ -41,6 +41,10 @@ def render_page(returns_df, cfg):
         st.info("Select at least 2 sectors in the sidebar to view systemic risk metrics.")
         return
 
+    if len(returns_df) <= cfg.get("lags", 2):
+        st.warning("Insufficient return observations for analysis. Please select a wider date range in the sidebar.")
+        return
+
     # ── Auto-compute baseline spillovers (cached) ─────────────────────
     metrics = st.session_state.get("metrics")
     spill_df = st.session_state.get("spillover_df")
