@@ -67,16 +67,15 @@ def _render_diagnostic_summary(diag_res):
 
 
 def render_page(prices_df, returns_df, features_dict, val_report, diag_res, vol_res, cfg):
-    """Renders the consolidated Market & Risk section."""
+    """Renders the streamlined Market & Risk section."""
 
-    st.markdown("### Market & Risk")
-    st.caption("Sector price trends, returns, volatility, drawdowns, and asymmetric GARCH volatility analysis.")
+    st.markdown("### Market & Risk Analysis")
+    st.caption("Sector price series, returns, econometric diagnostic tests, and asymmetric GARCH volatility.")
 
-    tab_data, tab_garch, tab_diag = st.tabs(["Market Data", "Volatility", "Diagnostics"])
+    tab_data, tab_vol = st.tabs(["📊 Market Data & Tests", "⚡ Asymmetric Volatility (GARCH)"])
 
-    # ── Tab 1: Market Data ──────────────────────────────────────────────
+    # ── Tab 1: Market Data & Econometric Tests ─────────────────────────
     with tab_data:
-        # Compact data health row
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Observations", val_report.get("total_rows", "—"))
         c2.metric("Sectors", len(cfg.get("selected_sectors", [])))
@@ -89,25 +88,29 @@ def render_page(prices_df, returns_df, features_dict, val_report, diag_res, vol_
 
         view = st.radio(
             "View",
-            ["Prices (Base 100)", "Daily Returns", "Drawdowns", "Rolling Volatility", "Correlation", "Descriptive Stats"],
+            ["Prices (Base 100)", "Log Returns (%)", "Daily Simple Returns (%)", "Correlation Matrix", "Descriptive Stats"],
             horizontal=True,
             label_visibility="collapsed"
         )
 
         if view == "Prices (Base 100)":
             render_prices_chart(prices_df)
-        elif view == "Daily Returns":
+        elif view == "Log Returns (%)":
             fig = px.line(
                 returns_df, x=returns_df.index, y=returns_df.columns,
-                title="Daily Log Returns by Sector (%)",
-                labels={"value": "Return (%)", "variable": "Sector"}
+                title="Daily Percentage Log Returns: r_t = ln(P_t / P_{t-1}) × 100",
+                labels={"value": "Log Return (%)", "variable": "Sector"}
             )
             _render_plotly(fig, height=440)
-        elif view == "Drawdowns":
-            render_drawdowns_chart(features_dict.get("drawdowns", returns_df))
-        elif view == "Rolling Volatility":
-            render_rolling_volatility_chart(features_dict.get("volatility_20d", returns_df), window_label="20-Day")
-        elif view == "Correlation":
+        elif view == "Daily Simple Returns (%)":
+            simple_ret = features_dict.get("daily_returns", returns_df)
+            fig = px.line(
+                simple_ret, x=simple_ret.index, y=simple_ret.columns,
+                title="Daily Simple Returns: R_t = (P_t - P_{t-1}) / P_{t-1} × 100",
+                labels={"value": "Simple Return (%)", "variable": "Sector"}
+            )
+            _render_plotly(fig, height=440)
+        elif view == "Correlation Matrix":
             render_correlation_chart(returns_df.corr())
         elif view == "Descriptive Stats":
             desc = stats.get_descriptive_stats(returns_df)
@@ -115,19 +118,50 @@ def render_page(prices_df, returns_df, features_dict, val_report, diag_res, vol_
             with st.expander("Download data"):
                 download_csv(desc, "descriptive_statistics.csv", key="dl_desc_mr")
 
-    # ── Tab 2: Volatility ─────────────────────────────────────────────
-    with tab_garch:
-        st.caption("GARCH-family models estimate time-varying conditional volatility and capture leverage effects — where negative shocks amplify volatility more than positive ones.")
+        # ── Pillar A: The 3 Core Econometric Tests & Inferences ───────
+        st.markdown("---")
+        st.markdown("#### 🔬 Econometric Pre-Testing (Foundational Sanity Checks)")
+        st.caption("Empirical justification for non-linear tail-risk and volatility modeling.")
 
-        sector = st.selectbox("Sector", list(returns_df.columns), key="mr_vol_sec")
+        if diag_res is not None:
+            _render_diagnostic_summary(diag_res)
+
+            with st.expander("Detailed Test Results & Empirical Inferences", expanded=False):
+                col_t1, col_t2 = st.columns(2)
+                with col_t1:
+                    st.markdown("**1. Stationarity (ADF Test):** Confirms return series are $I(0)$ stationary. Prevents spurious regressions in time-series models.")
+                    if "stationarity" in diag_res and diag_res["stationarity"] is not None:
+                        st.dataframe(diag_res["stationarity"][["Sector", "Test", "Statistic", "p_value", "Decision"]],
+                                     use_container_width=True, hide_index=True)
+
+                    st.markdown("**2. ARCH Effects (Engle's LM Test):** Rejection of constant variance proves volatility is heteroskedastic and clustered.")
+                    if "heteroskedasticity" in diag_res and diag_res["heteroskedasticity"] is not None:
+                        st.dataframe(diag_res["heteroskedasticity"][["Sector", "Test", "LM_Statistic", "p_value", "ARCH_Effects_Present"]],
+                                     use_container_width=True, hide_index=True)
+
+                with col_t2:
+                    st.markdown("**3. Distributional Normality (Jarque-Bera Test):** Rejection of Gaussianity ($p < 0.001$) proves presence of fat tails, justifying Quantile Modeling & CVaR.")
+                    if "distribution" in diag_res and diag_res["distribution"] is not None:
+                        st.dataframe(diag_res["distribution"][["Sector", "Mean", "Std_Dev", "Skewness", "Kurtosis", "JB_p_value", "Is_Normal"]],
+                                     use_container_width=True, hide_index=True)
+        else:
+            st.info("Computing econometric diagnostics…")
+
+    # ── Tab 2: Asymmetric Volatility (GJR-GARCH & GARCH) ───────────────
+    with tab_vol:
+        st.caption("GARCH models estimate time-varying conditional volatility σ_t. GJR-GARCH captures asymmetric leverage effects where negative shocks amplify volatility more than positive ones.")
+
+        sector = st.selectbox("Select Sector for Volatility Analysis", list(returns_df.columns), key="mr_vol_sec")
 
         if sector:
             with st.spinner(f"Fitting volatility models for {sector}…"):
-                sector_df = vol_runner.compare_volatility_models_for_sector(returns_df[sector])
+                all_models_df = vol_runner.compare_volatility_models_for_sector(returns_df[sector])
+                # Filter to only GJR-GARCH and standard GARCH
+                sector_df = all_models_df[all_models_df["Model"].isin(["GJR-GARCH(1,1,1)", "GARCH(1,1)"])].copy()
+
             display_df = sector_df.drop(columns=["fit_result"], errors="ignore")
 
-            # Compact model summary — key columns only
-            st.markdown(f"**Model Comparison — {sector}**")
+            st.markdown(f"**Model Comparison: GJR-GARCH(1,1,1) vs GARCH(1,1) — {sector}**")
             st.caption("Lower AIC/BIC = better fit. Negative Shock Sensitivity (γ) > 0 confirms asymmetric leverage effect.")
 
             friendly_display = display_df.rename(columns={
@@ -141,20 +175,19 @@ def render_page(prices_df, returns_df, features_dict, val_report, diag_res, vol_
             st.dataframe(friendly_display[show_cols], use_container_width=True, hide_index=True)
 
             model_name = st.radio(
-                "Inspect model",
+                "Active Volatility Model",
                 list(sector_df["Model"].values),
                 horizontal=True,
-                key="mr_model_choice",
-                label_visibility="collapsed"
+                key="mr_model_choice"
             )
             row = sector_df[sector_df["Model"] == model_name].iloc[0]
             res_obj = row["fit_result"]
 
-            # Conditional volatility chart
+            # Dynamic conditional volatility chart (±2σ bands)
             cond_vol = res_obj.conditional_volatility / (res_obj.scale if res_obj.scale else 1.0)
             render_conditional_volatility_chart(returns_df[sector], cond_vol, model_name)
 
-            # Clean 3-column forecast + metrics layout
+            # Volatility forecast & persistence metrics
             cv1, cv2, cv3 = st.columns(3)
             with cv1:
                 fc = vol_mod.generate_multi_step_volatility_forecast(res_obj, horizons=[1, 5, 20])
@@ -169,36 +202,5 @@ def render_page(prices_df, returns_df, features_dict, val_report, diag_res, vol_
                 cv3.metric("Volatility Persistence", f"{row['Persistence']:.3f}",
                            help="Close to 1 means shocks decay slowly (long memory)")
                 half_life = row.get("Half_Life_Days", "—")
-                cv3.metric("Shock Half-Life", f"{half_life:.0f}d" if isinstance(half_life, float) else "—",
-                           help="Days until volatility shock decays to half its initial size")
-
-            with st.expander("Advanced model parameters"):
-                st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-    # ── Tab 3: Diagnostics ─────────────────────────────────────────────
-    with tab_diag:
-        if diag_res is None:
-            st.info("Diagnostics are computed when you open this section. Please wait a moment and re-open the tab, or navigate away and back.")
-            return
-
-        st.caption("Statistical tests that validate model assumptions. Findings inform model selection and interpretation.")
-
-        _render_diagnostic_summary(diag_res)
-
-        with st.expander("Stationarity tests (ADF / KPSS)"):
-            if "stationarity" in diag_res and diag_res["stationarity"] is not None:
-                st.dataframe(diag_res["stationarity"][["Sector", "Test", "Statistic", "p_value", "Decision"]],
-                             use_container_width=True, hide_index=True)
-
-        with st.expander("ARCH effects & heteroskedasticity"):
-            if "heteroskedasticity" in diag_res and diag_res["heteroskedasticity"] is not None:
-                st.dataframe(diag_res["heteroskedasticity"][["Sector", "Test", "LM_Statistic", "p_value", "ARCH_Effects_Present"]],
-                             use_container_width=True, hide_index=True)
-
-        with st.expander("Return distribution tests"):
-            if "distribution" in diag_res and diag_res["distribution"] is not None:
-                st.dataframe(diag_res["distribution"], use_container_width=True, hide_index=True)
-
-        with st.expander("Non-linearity (BDS test)"):
-            if "nonlinearity" in diag_res and diag_res["nonlinearity"] is not None:
-                st.dataframe(diag_res["nonlinearity"], use_container_width=True, hide_index=True)
+                cv3.metric("Shock Half-Life", f"{half_life:.0f}d" if isinstance(half_life, (int, float)) and not pd.isna(half_life) else "—",
+                           help="Days until a volatility shock decays by 50%")
