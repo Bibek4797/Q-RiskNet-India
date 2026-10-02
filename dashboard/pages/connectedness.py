@@ -58,8 +58,8 @@ def render_page(model_input, returns_df, cfg):
 
     # ── Tab 1: Spillover Map ──────────────────────────────────────────
     with conn_tab:
-        # Controls — clean single row
-        c0, c1, c2, c3 = st.columns([2.2, 2.0, 2.0, 1.2])
+        # Controls — prominent two-row layout
+        c0, c1 = st.columns([1, 1])
         with c0:
             model_engine = st.selectbox(
                 "Model Engine",
@@ -69,14 +69,16 @@ def render_page(model_input, returns_df, cfg):
             )
         with c1:
             vol_proxy = st.selectbox(
-                "Risk input",
+                "Risk Input Space",
                 ["Log Returns", "Conditional Volatility (GJR-GARCH)"],
                 key="conn_vol_proxy",
                 help="Choose whether to model spillovers in raw log-return space or in estimated conditional volatility space."
             )
+
+        c2, c3 = st.columns([3, 1])
         with c2:
             quantile = st.select_slider(
-                "Market regime (τ)",
+                "Market Regime (Quantile τ)",
                 options=[0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95],
                 value=0.50,
                 key="conn_tau"
