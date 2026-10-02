@@ -1,5 +1,6 @@
-torch
-streamlit==1.32.2
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0
+streamlit>=1.38.0
 yfinance>=0.2.35
 statsmodels>=0.14.0
 arch>=6.0.0
