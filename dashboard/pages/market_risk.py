@@ -131,19 +131,22 @@ def render_page(prices_df, returns_df, features_dict, val_report, diag_res, vol_
                 with col_t1:
                     st.markdown("**1. Stationarity (ADF Test):** Confirms return series are $I(0)$ stationary. Prevents spurious regressions in time-series models.")
                     if "stationarity" in diag_res and diag_res["stationarity"] is not None:
-                        st.dataframe(diag_res["stationarity"][["Sector", "Test", "Statistic", "p_value", "Decision"]],
-                                     use_container_width=True, hide_index=True)
+                        stat_df = diag_res["stationarity"]
+                        cols_stat = [c for c in ["Sector", "Test", "Statistic", "p_value", "Decision"] if c in stat_df.columns]
+                        st.dataframe(stat_df[cols_stat], use_container_width=True, hide_index=True)
 
                     st.markdown("**2. ARCH Effects (Engle's LM Test):** Rejection of constant variance proves volatility is heteroskedastic and clustered.")
                     if "heteroskedasticity" in diag_res and diag_res["heteroskedasticity"] is not None:
-                        st.dataframe(diag_res["heteroskedasticity"][["Sector", "Test", "LM_Statistic", "p_value", "ARCH_Effects_Present"]],
-                                     use_container_width=True, hide_index=True)
+                        arch_df = diag_res["heteroskedasticity"]
+                        cols_arch = [c for c in ["Sector", "Test", "LM_Statistic", "p_value", "ARCH_Effects_Present"] if c in arch_df.columns]
+                        st.dataframe(arch_df[cols_arch], use_container_width=True, hide_index=True)
 
                 with col_t2:
                     st.markdown("**3. Distributional Normality (Jarque-Bera Test):** Rejection of Gaussianity ($p < 0.001$) proves presence of fat tails, justifying Quantile Modeling & CVaR.")
                     if "distribution" in diag_res and diag_res["distribution"] is not None:
-                        st.dataframe(diag_res["distribution"][["Sector", "Mean", "Std_Dev", "Skewness", "Kurtosis", "JB_p_value", "Is_Normal"]],
-                                     use_container_width=True, hide_index=True)
+                        dist_df = diag_res["distribution"]
+                        cols_dist = [c for c in ["Sector", "Mean (%)", "Std_Dev (%)", "Skewness", "Kurtosis", "JB_p_value", "Is_Normal", "Tail_Behavior"] if c in dist_df.columns]
+                        st.dataframe(dist_df[cols_dist], use_container_width=True, hide_index=True)
         else:
             st.info("Computing econometric diagnostics…")
 
