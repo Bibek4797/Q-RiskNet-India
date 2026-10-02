@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 
 import src.models.qvar as qvar
+from src.models.quantile_lstm import LSTMQuantileModel
 import src.forecasting.girf as girf
 import src.econometrics.garch as garch
 import src.diagnostics.logger as diag
@@ -58,7 +59,14 @@ def render_page(model_input, returns_df, cfg):
     # ── Tab 1: Spillover Map ──────────────────────────────────────────
     with conn_tab:
         # Controls — clean single row
-        c1, c2, c3 = st.columns([2, 2, 1])
+        c0, c1, c2, c3 = st.columns([2.2, 2.0, 2.0, 1.2])
+        with c0:
+            model_engine = st.selectbox(
+                "Model Engine",
+                ["Quantile VAR (QVAR)", "PyTorch Quantile LSTM (Pinball Loss)"],
+                key="conn_model_engine",
+                help="Choose between equation-by-equation Quantile Autoregression (QVAR) or Deep Learning PyTorch Quantile LSTM trained with Pinball Loss."
+            )
         with c1:
             vol_proxy = st.selectbox(
                 "Risk input",
@@ -74,6 +82,7 @@ def render_page(model_input, returns_df, cfg):
                 key="conn_tau"
             )
         with c3:
+            st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
             run_btn = st.button("Run Analysis", type="primary", key="run_spill")
 
         st.caption(f"τ = {quantile:.2f} — {_regime_label(quantile)}. Lower quantiles capture tail/downside risk spillovers.")
@@ -93,15 +102,25 @@ def render_page(model_input, returns_df, cfg):
         # Run analysis
         if run_btn:
             try:
-                with st.spinner("Fitting quantile model and computing spillovers…"):
-                    m = qvar.QVARModel(p=cfg["lags"], quantile=quantile)
+                with st.spinner(f"Fitting {model_engine} at τ={quantile:.2f} and simulating +2σ GIRF spillovers…"):
+                    if "LSTM" in model_engine:
+                        m = LSTMQuantileModel(
+                            seq_len=max(2, cfg.get("lags", 5)),
+                            quantile=quantile,
+                            epochs=25,
+                            early_stopping=True,
+                            patience=4
+                        )
+                    else:
+                        m = qvar.QVARModel(p=cfg.get("lags", 2), quantile=quantile)
+
                     m.fit(active_input)
                     spill_df = girf.compute_spillover_matrix(m, active_input, horizon=cfg["forecast_horizon"])
                     metrics = girf.calculate_connectedness_metrics(spill_df)
                     st.session_state["spillover_df"] = spill_df
                     st.session_state["metrics"] = metrics
                     st.session_state["active_model_label"] = (
-                        f"QVAR (τ={quantile:.2f}, {_regime_label(quantile)}, {vol_proxy})"
+                        f"{model_engine} (τ={quantile:.2f}, {_regime_label(quantile)}, {vol_proxy})"
                     )
                 st.rerun()
             except Exception as e:

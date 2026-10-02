@@ -187,6 +187,9 @@ class LSTMQuantileModel:
             next_pred = self.predict_next(current_hist.iloc[-self.seq_len:])
             forecasts.append(next_pred)
             next_df = pd.DataFrame([next_pred])
-            next_df.index = [current_hist.index[-1] + pd.Timedelta(days=1)]
+            try:
+                next_df.index = [pd.to_datetime(current_hist.index[-1]) + pd.Timedelta(days=1)]
+            except Exception:
+                next_df.index = [current_hist.index[-1] + 1 if isinstance(current_hist.index[-1], (int, np.integer)) else f"step_{h+1}"]
             current_hist = pd.concat([current_hist, next_df])
         return pd.DataFrame(forecasts)
