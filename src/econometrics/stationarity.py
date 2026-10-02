@@ -78,13 +78,11 @@ def run_zivot_andrews_test(series):
 
 def run_full_stationarity_suite(returns_df):
     """
-    Runs ADF, KPSS, and Zivot-Andrews tests for all sectors in dataframe.
+    Runs Augmented Dickey-Fuller (ADF) test for all sectors in dataframe.
     """
-    with diag.DiagnosticTimer("Full Stationarity Analysis Suite"):
+    with diag.DiagnosticTimer("Full Stationarity Analysis Suite (ADF)"):
         results = []
         for col in returns_df.columns:
             s = returns_df[col]
             results.append(run_adf_test(s))
-            results.append(run_kpss_test(s))
-            results.append(run_zivot_andrews_test(s))
         return pd.DataFrame(results)

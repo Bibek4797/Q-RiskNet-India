@@ -132,7 +132,7 @@ def render_page(prices_df, returns_df, features_dict, val_report, diag_res, vol_
                     st.markdown("**1. Stationarity (ADF Test):** Confirms return series are $I(0)$ stationary. Prevents spurious regressions in time-series models.")
                     if "stationarity" in diag_res and diag_res["stationarity"] is not None:
                         stat_df = diag_res["stationarity"]
-                        cols_stat = [c for c in ["Sector", "Test", "Statistic", "p_value", "Decision"] if c in stat_df.columns]
+                        cols_stat = [c for c in ["Sector", "Test", "Statistic", "Crit_5%", "p_value", "Decision"] if c in stat_df.columns]
                         st.dataframe(stat_df[cols_stat], use_container_width=True, hide_index=True)
 
                     st.markdown("**2. ARCH Effects (Engle's LM Test):** Rejection of constant variance proves volatility is heteroskedastic and clustered.")
