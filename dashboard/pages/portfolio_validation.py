@@ -160,18 +160,20 @@ def _render_forecast_benchmark_section(returns_df):
     if fc_res is not None:
         st.markdown(f"*Out-of-sample benchmark results for {target_sec}*")
 
+        summary_display = fc_res["summary_df"].copy()
+        if "Directional_Accuracy_Pct" in summary_display.columns:
+            summary_display = summary_display.drop(columns=["Directional_Accuracy_Pct"])
+
         col_rename = {
             "RMSE": "RMSE",
             "MAE": "MAE",
-            "Directional_Accuracy_Pct": "Directional Accuracy (%)",
             "Pinball_Loss": "Pinball Loss (quantile)"
         }
-        friendly_fc = fc_res["summary_df"].rename(columns=col_rename)
+        friendly_fc = summary_display.rename(columns=col_rename)
 
         try:
             styled_fc = friendly_fc.style \
-                .highlight_min(subset=["RMSE", "MAE", "Pinball Loss (quantile)"], color="#10b981") \
-                .highlight_max(subset=["Directional Accuracy (%)"], color="#6366f1")
+                .highlight_min(subset=["RMSE", "MAE", "Pinball Loss (quantile)"], color="#10b981")
             st.dataframe(styled_fc, use_container_width=True)
         except Exception:
             st.dataframe(friendly_fc, use_container_width=True)
