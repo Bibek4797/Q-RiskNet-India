@@ -202,9 +202,12 @@ def _render_forecast_benchmark_section(returns_df):
         )
 
 
-        with st.expander("Diebold-Mariano Hypothesis Tests"):
-            st.caption("Evaluates whether forecast errors are statistically different. Negative DM statistic with p <= 0.05 confirms statistically significant superiority.")
-            st.dataframe(fc_res["dm_df"], use_container_width=True)
+        with st.expander("Diebold-Mariano Hypothesis Tests", expanded=True):
+            st.caption(
+                "Evaluates whether out-of-sample forecast accuracy differences are statistically significant under Pinball Loss. "
+                "A positive DM statistic with p ≤ 0.05 confirms that the candidate model achieves statistically superior tail-risk forecasts over the baseline."
+            )
+            st.dataframe(fc_res["dm_df"], use_container_width=True, hide_index=True)
 
     elif not run_fc_btn:
         st.info("Select a sector and click **Run Walk-Forward Benchmark** to evaluate PyTorch Quantile LSTM against ARIMA and SVR.")

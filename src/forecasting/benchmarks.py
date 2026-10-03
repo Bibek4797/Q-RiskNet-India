@@ -200,20 +200,32 @@ def calculate_forecast_metrics(y_true, y_pred, quantile=0.50):
     }
 
 
-def diebold_mariano_test(e1, e2, h=1):
+def diebold_mariano_test(e1, e2, h=1, quantile=None):
     """
-    Computes Diebold-Mariano test statistic and p-value comparing forecast errors e1 and e2.
+    Computes Diebold-Mariano test statistic and p-value comparing forecast errors e1 (baseline) and e2 (candidate).
+    If quantile is specified, loss is evaluated under Pinball Loss L_tau(e).
+    Otherwise uses squared error e^2.
+    d_t = Loss(e1) - Loss(e2).
+    Positive d_t means Candidate Model (e2) achieves LOWER loss than Baseline (e1) -> Superior.
     """
-    e1 = np.array(e1)
-    e2 = np.array(e2)
-    d = e1 ** 2 - e2 ** 2
+    e1 = np.asarray(e1, dtype=float)
+    e2 = np.asarray(e2, dtype=float)
+    
+    if quantile is not None:
+        q = float(quantile)
+        l1 = e1 * (q - (e1 < 0).astype(float))
+        l2 = e2 * (q - (e2 < 0).astype(float))
+        d = l1 - l2
+    else:
+        d = e1 ** 2 - e2 ** 2
+
     n = len(d)
     if n <= 1:
         return {"dm_stat": 0.0, "p_value": 1.0}
 
     mean_d = np.mean(d)
     var_d = np.var(d, ddof=1)
-    if var_d == 0:
+    if var_d == 0 or np.isnan(var_d):
         return {"dm_stat": 0.0, "p_value": 1.0}
 
     dm_stat = mean_d / np.sqrt(var_d / n)

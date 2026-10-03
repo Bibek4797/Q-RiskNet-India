@@ -116,21 +116,39 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
         if rw_err is not None:
             for name, err in errors_dict.items():
                 if name != "Random Walk (Naive)":
-                    dm_res = diebold_mariano_test(rw_err, err)
+                    dm_res = diebold_mariano_test(rw_err, err, quantile=quantile)
+                    stat = dm_res["dm_stat"]
+                    pval = dm_res["p_value"]
+                    if pval <= 0.05 and stat > 0:
+                        verdict = f"{name} is Statistically Superior (p={pval:.4f})"
+                    elif pval <= 0.05 and stat < 0:
+                        verdict = f"Random Walk is Superior (p={pval:.4f})"
+                    else:
+                        verdict = "No Significant Difference (Statistically Equivalent)"
+
                     dm_list.append({
                         "Comparison": f"{name} vs Random Walk",
-                        "DM_Statistic": dm_res["dm_stat"],
-                        "DM_p_Value": dm_res["p_value"],
-                        "Significantly_Superior": dm_res["p_value"] <= 0.05
+                        "DM_Statistic": stat,
+                        "p_Value": pval,
+                        "Statistical_Verdict": verdict
                     })
 
         if qvar_err is not None and lstm_err is not None:
-            dm_qvar = diebold_mariano_test(qvar_err, lstm_err)
+            dm_qvar = diebold_mariano_test(qvar_err, lstm_err, quantile=quantile)
+            stat = dm_qvar["dm_stat"]
+            pval = dm_qvar["p_value"]
+            if pval <= 0.05 and stat > 0:
+                verdict = f"Quantile LSTM is Statistically Superior (p={pval:.4f})"
+            elif pval <= 0.05 and stat < 0:
+                verdict = f"QVAR is Superior (p={pval:.4f})"
+            else:
+                verdict = "No Significant Difference (Statistically Equivalent)"
+
             dm_list.append({
                 "Comparison": "Quantile LSTM vs QVAR (Nonlinear vs Linear)",
-                "DM_Statistic": dm_qvar["dm_stat"],
-                "DM_p_Value": dm_qvar["p_value"],
-                "Significantly_Superior": dm_qvar["p_value"] <= 0.05
+                "DM_Statistic": stat,
+                "p_Value": pval,
+                "Statistical_Verdict": verdict
             })
 
         return summary_df, pd.DataFrame(dm_list)
