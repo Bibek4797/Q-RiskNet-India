@@ -32,11 +32,29 @@ def inject_custom_css():
         background: #0b1120 !important;
     }
 
-    /* ── Hide default Streamlit chrome ─────────────────── */
+    /* ── Streamlit chrome & Sidebar Controls ───────────── */
     [data-testid="stSidebarNav"] { display: none !important; }
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
-    header { visibility: hidden; }
+    [data-testid="stToolbar"] { visibility: hidden; }
+    header {
+        background: transparent !important;
+    }
+    /* Ensure the sidebar open/collapse chevron button is always visible and clickable */
+    [data-testid="stSidebarCollapsedControl"] {
+        visibility: visible !important;
+        display: flex !important;
+        color: #c7d2fe !important;
+        background: rgba(99, 102, 241, 0.15) !important;
+        border: 1px solid rgba(99, 102, 241, 0.35) !important;
+        border-radius: 6px !important;
+        padding: 4px !important;
+        margin: 6px 0 0 10px !important;
+    }
+    [data-testid="stSidebarCollapsedControl"]:hover {
+        background: rgba(99, 102, 241, 0.3) !important;
+        color: #ffffff !important;
+    }
 
     /* ── Header ─────────────────────────────────────────── */
     .qrn-header {
