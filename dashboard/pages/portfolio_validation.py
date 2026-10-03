@@ -11,7 +11,7 @@ import src.portfolio.stress_test as p_st
 import src.econometrics.tail_risk as tail_risk
 import src.forecasting.evaluator as evaluator
 import src.diagnostics.validation_runner as val_runner
-from dashboard.components.charts import render_forecast_benchmark_chart, _render_plotly
+from dashboard.components.charts import _render_plotly
 from dashboard.components.exports import download_csv
 
 # ==============================================================================
@@ -201,24 +201,6 @@ def _render_forecast_benchmark_section(returns_df):
             f"• **VaR Breach Rate (%)**: Percentage of out-of-sample days where actual loss exceeded the forecast. Theoretical target is **{target_breach:.1f}%**."
         )
 
-        with st.expander("Classical Mean Metrics (RMSE / MAE)", expanded=False):
-            st.caption(
-                "Econometric Note: In tail-risk quantile estimation (τ = 0.05 / 0.10), RMSE and MAE are mathematically non-applicable "
-                "because the model is estimating the 5th percentile boundary rather than the conditional mean. "
-                "They are provided here solely for classical reference."
-            )
-            mean_cols = [c for c in ["Target_Sector", "Model", "Evaluation", "RMSE", "MAE"] if c in summary_display.columns]
-            st.dataframe(summary_display[mean_cols], use_container_width=True, hide_index=True)
-
-        render_forecast_benchmark_chart(fc_res["predictions_df"], evaluated_sec)
-        st.caption(
-            f"**Pictorial Interpretation Guide (τ = {evaluated_tau:.2f}):** "
-            "• **Actual Return (Gray):** Realized daily market return. "
-            "• **Quantile LSTM & QVAR (Purple & Green Lines):** Dynamic lower tail-risk boundaries (Value-at-Risk floor). "
-            f"Because they model tail risk (τ = {evaluated_tau:.2f}), they dynamically track the downside safety floor below daily market noise. "
-            f"A **VaR Breach** occurs only on the rare ~{evaluated_tau*100:.1f}% of market days when the actual return drops *below* this boundary. "
-            "• **ARIMA & SVR (Dotted Lines):** Classical mean-reverting baselines estimating central tendencies near 0%."
-        )
 
         with st.expander("Diebold-Mariano Hypothesis Tests"):
             st.caption("Evaluates whether forecast errors are statistically different. Negative DM statistic with p <= 0.05 confirms statistically significant superiority.")
