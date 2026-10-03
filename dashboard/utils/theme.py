@@ -44,7 +44,7 @@ def inject_custom_css():
         z-index: 1000 !important;
     }
 
-    /* Force sidebar open/collapse toggle chevron to always be prominently visible */
+    /* Force sidebar open/collapse toggle chevron to be visible if needed */
     [data-testid="stSidebarCollapsedControl"],
     [data-testid="collapsedControl"] {
         position: fixed !important;
@@ -72,19 +72,6 @@ def inject_custom_css():
         stroke: #c7d2fe !important;
         width: 20px !important;
         height: 20px !important;
-    }
-    /* When sidebar is open, keep collapse button visible and styled */
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="stSidebarCollapseButton"] button {
-        visibility: visible !important;
-        opacity: 1 !important;
-        color: #c7d2fe !important;
-    }
-    [data-testid="stSidebarCollapseButton"] svg {
-        fill: #c7d2fe !important;
-        stroke: #c7d2fe !important;
-        width: 18px !important;
-        height: 18px !important;
     }
 
     /* ── Header ─────────────────────────────────────────── */
@@ -206,10 +193,34 @@ def inject_custom_css():
         color: #c7d2fe !important;
     }
 
-    /* ── Sidebar ──────────────────────────────────────────── */
+    /* ── Sidebar: Permanently pinned open & visible ────────── */
+    section[data-testid="stSidebar"],
     [data-testid="stSidebar"] {
         background: #080d1c !important;
         border-right: 1px solid rgba(99, 102, 241, 0.15) !important;
+        min-width: 280px !important;
+        max-width: 320px !important;
+        width: 300px !important;
+        transform: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        margin-left: 0 !important;
+        left: 0 !important;
+    }
+
+    [data-testid="stSidebarContent"],
+    [data-testid="stSidebarUserContent"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* Hide the collapse chevron so user cannot accidentally collapse it */
+    [data-testid="stSidebarCollapseButton"] {
+        display: none !important;
     }
 
     /* Sidebar nav radio styling */
