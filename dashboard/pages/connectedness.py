@@ -66,8 +66,11 @@ def _compute_garch_volatilities(returns_tuple):
 def render_page(model_input, returns_df, cfg):
     """Renders the Connectedness section with user-friendly risk flow labels."""
 
-    st.markdown("### Systemic Risk Flow & Connectedness")
-    st.caption("Measure how much risk or volatility each sector transmits to or receives from others. High connectedness signals that shocks will spread rapidly across the market.")
+    st.markdown("### Systemic Risk Flow & Connectedness (Diebold–Yılmaz Framework)")
+    st.caption(
+        "Quantifies directional cross-market risk transmission using the **Diebold–Yılmaz (2012, 2014)** "
+        "Generalized Forecast Error Variance Decomposition (GFEVD) framework combined with Multi-Quantile Autoregression."
+    )
 
     # ── Show cached results if available (no forced rerun) ─────────────
     metrics = st.session_state.get("metrics")
@@ -175,28 +178,27 @@ def render_page(model_input, returns_df, cfg):
             render_spillover_charts(metrics, label_prefix=active_pfx)
 
             # Spillover matrix
-            st.markdown(f"**Directional {active_pfx} Flow Matrix (%)**")
-            st.caption(f"How much of each sector's forecast variance is explained by shocks from other sectors. Rows = receiving sector. Columns = transmitting sector.")
+            st.markdown(f"**Diebold–Yılmaz Directional {active_pfx} Spillover Matrix (%)**")
+            st.caption(
+                f"Measures how much of each sector's H={cfg['forecast_horizon']}-day forecast error variance is explained "
+                f"by shocks from other sectors (Diebold & Yılmaz, 2012). Rows = receiving sector. Columns = transmitting sector."
+            )
             render_spillover_matrix_table(spill_df, metrics, label_prefix=active_pfx)
 
             with st.expander("Download results"):
                 download_csv(spill_df, f"{active_pfx.lower()}_spillover_matrix.csv", key="dl_spill")
 
-            with st.expander("Advanced QVAR details"):
+            with st.expander("Diebold–Yılmaz & QVAR Econometric Methodology"):
                 st.markdown(f"""
-**Method:** Equation-by-equation multi-quantile VAR framework. Modeled on **{active_pfx} space**
-regressed on lagged values of all sectors at quantile τ using quantile regression.
-
-**Spillover computation:** GIRF (Generalized Impulse Response Function) simulations apply a
-+2σ shock to each transmitting sector and measure forecast error variance absorbed by each
-receiving sector over the specified horizon H.
-
-**Metric interpretation:**
-- **TCI (Systemic Connectedness):** Fraction of the total forecast variance explained by
-  cross-sector spillovers (higher = more interconnected).
-- **{active_pfx} Transmitted:** Sum of all {active_pfx.lower()} exported to other sectors.
-- **{active_pfx} Received:** Sum of all {active_pfx.lower()} imported from other sectors.
-- **Net {active_pfx} Flow:** Transmitted minus Received. Positive = net transmitter.
+**Theoretical Foundation (Diebold & Yılmaz, 2012, 2014):**
+- **Generalized Forecast Error Variance Decomposition (GFEVD):** Classical VAR variance decompositions depend on the ordering of variables (Cholesky factorization). Diebold and Yılmaz introduced an order-invariant approach based on the Generalized Impulse Response Function (GIRF; Pesaran & Shin, 1998).
+- **Shock Mechanism:** An unexpected $+2\\sigma$ shock is applied to each transmitting sector $j$, and its dynamic propagation is tracked across all sectors over an $H$-day forecast horizon.
+- **Directional Spillovers:**
+  - **{active_pfx} Transmitted (TO):** Off-diagonal column sum representing the total shock exported from sector $j$ to the rest of the market.
+  - **{active_pfx} Received (FROM):** Off-diagonal row sum representing total shock imported into sector $i$ from other sectors.
+  - **Net {active_pfx} Flow:** $\\text{{NET}}_i = \\text{{TO}}_i - \\text{{FROM}}_i$. Positive values indicate systemic risk transmitters; negative values denote risk sinks/absorbers.
+- **Total Connectedness Index (TCI):** Ratio of total cross-sector spillovers to total system forecast variance:
+  $$\\text{{TCI}} = \\frac{{\\sum_{{i \\neq j}} S_{{ij}}}}{{K}} \\times 100\\%$$
                 """)
         elif not run_btn:
             st.info(f"Click **Run Analysis** to compute directional {pfx.lower()} spillovers.")

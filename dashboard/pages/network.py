@@ -16,8 +16,8 @@ from dashboard.components.exports import download_csv
 def render_page(returns_df):
     """Renders the Financial Network Science page."""
 
-    st.markdown("### Risk Network & Topology")
-    st.caption("Visualises which sectors form the core of systemic risk transmission and how they are connected.")
+    st.markdown("### Risk Network & Topology (Diebold–Yılmaz Network Mapping)")
+    st.caption("Visualises the Diebold–Yılmaz (2014) directed spillover network topology to identify systemic hubs, shock transmitters, and vulnerable receivers.")
 
     spill_df = st.session_state.get("spillover_df")
 
