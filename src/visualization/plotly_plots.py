@@ -45,6 +45,7 @@ def render_spillover_network(spillover_df, communities=None, min_threshold_pct=2
             pos = nx.spring_layout(G, seed=42, k=1.5/np.sqrt(K))
             
         edge_traces = []
+        arrow_annotations = []
         for u, v, d in G.edges(data=True):
             x0, y0 = pos[u]
             x1, y1 = pos[v]
@@ -53,12 +54,31 @@ def render_spillover_network(spillover_df, communities=None, min_threshold_pct=2
             edge_trace = go.Scatter(
                 x=[x0, x1, None],
                 y=[y0, y1, None],
-                line=dict(width=0.8 + (w / 10.0), color='rgba(148, 163, 184, 0.5)'),
+                line=dict(width=0.8 + (w / 10.0), color='rgba(148, 163, 184, 0.35)'),
                 hoverinfo='text',
                 text=f"Transmitter: {u}<br>Receiver: {v}<br>Spillover: {w:.2f}%",
                 mode='lines'
             )
             edge_traces.append(edge_trace)
+
+            dx = x1 - x0
+            dy = y1 - y0
+            dist = np.hypot(dx, dy)
+            if dist > 0:
+                xt = x0 + 0.82 * dx
+                yt = y0 + 0.82 * dy
+                arrow_annotations.append(dict(
+                    ax=x0, ay=y0,
+                    x=xt, y=yt,
+                    xref='x', yref='y',
+                    axref='x', ayref='y',
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowsize=1.2,
+                    arrowwidth=max(1.0, min(3.2, 0.8 + (w / 10.0))),
+                    arrowcolor='rgba(199, 210, 254, 0.65)',
+                    opacity=0.75
+                ))
             
         node_x, node_y, node_colors, node_text = [], [], [], []
         for node in G.nodes():
@@ -86,9 +106,10 @@ def render_spillover_network(spillover_df, communities=None, min_threshold_pct=2
         
         fig = go.Figure(data=edge_traces + [node_trace])
         fig.update_layout(
-            title=dict(text="Network Connectedness Graph", font=dict(size=14, color='#94a3b8'), x=0.0, xanchor='left'),
+            title=dict(text="Network Connectedness Graph (Arrows point from Transmitter → Receiver)", font=dict(size=14, color='#94a3b8'), x=0.0, xanchor='left'),
             showlegend=False,
             hovermode='closest',
+            annotations=arrow_annotations,
             margin=dict(b=20, l=20, r=20, t=44),
             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, autorange=True, fixedrange=False),
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, autorange=True, fixedrange=False),
