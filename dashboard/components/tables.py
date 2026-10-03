@@ -15,12 +15,14 @@ def render_descriptive_table(desc_stats_df):
 def render_spillover_matrix_table(spill_df, metrics):
     """
     Renders spillover matrix table with user-friendly headers and background gradient.
+    Rows = Receiving sectors (row sum of off-diagonals = Risk Received / FROM).
+    Columns = Transmitting sectors (column sum of off-diagonals = Risk Transmitted / TO).
     """
     display_spill = spill_df.copy()
-    display_spill["Risk Transmitted"] = metrics["TO"]
-    from_row = pd.Series(metrics["FROM"], name="Risk Received")
-    display_spill = pd.concat([display_spill, pd.DataFrame([from_row])])
-    display_spill.loc["Risk Received", "Risk Transmitted"] = metrics["TCI"]
+    display_spill["Risk Received (FROM)"] = metrics["FROM"]
+    to_row = pd.Series(metrics["TO"], name="Risk Transmitted (TO)")
+    display_spill = pd.concat([display_spill, pd.DataFrame([to_row])])
+    display_spill.loc["Risk Transmitted (TO)", "Risk Received (FROM)"] = metrics["TCI"]
 
     try:
         st.dataframe(
