@@ -1,6 +1,6 @@
 Target_Sector,Model,Evaluation,RMSE,MAE,Directional_Accuracy_Pct,Pinball_Loss,VaR_Breach_Rate_Pct
-Bank,Quantile LSTM,Chronological Walk-Forward,2.8381,2.6143,50.0,0.1785,7.69
-Bank,Quantile VAR (QVAR),Chronological Walk-Forward,2.595,2.3075,50.0,0.1854,7.69
-Bank,"ARIMA(1,0,1)",Chronological Walk-Forward,2.5256,2.3173,50.0,0.1865,7.69
-Bank,Random Walk (Naive),Chronological Walk-Forward,2.3884,2.1878,50.0,0.2001,7.69
+Bank,Quantile LSTM,Chronological Walk-Forward,2.5704,2.3376,50.0,0.1747,11.54
+Bank,Quantile VAR (QVAR),Chronological Walk-Forward,2.8846,2.5942,50.0,0.1907,7.69
 Bank,Support Vector Regression,Chronological Walk-Forward,1.8756,1.6324,50.0,0.2005,11.54
+Bank,"ARIMA(1,0,1)",Chronological Walk-Forward,2.7393,2.4225,50.0,0.2502,7.69
+Bank,Random Walk (Naive),Chronological Walk-Forward,3.5956,3.1378,50.0,0.291,11.54

@@ -13,17 +13,33 @@ import src.diagnostics.logger as diag
 
 
 class RandomWalkModel:
-    """Naive Random Walk forecast: return = 0.0 (or empirical quantile shift)"""
+    """Naive Random Walk forecast: y_t = y_{t-1} + empirical quantile shock"""
     def __init__(self, quantile=0.50):
         self.quantile = quantile
         self.q_shift = 0.0
+        self.last_y = 0.0
 
     def fit(self, y):
-        if self.quantile != 0.50 and len(y) > 0:
-            self.q_shift = float(np.quantile(y, self.quantile))
+        y_arr = np.asarray(y, dtype=float)
+        if len(y_arr) > 0:
+            self.last_y = float(y_arr[-1])
+            if len(y_arr) > 1 and self.quantile != 0.50:
+                diffs = np.diff(y_arr)
+                self.q_shift = float(np.quantile(diffs, self.quantile))
+            else:
+                self.q_shift = 0.0
 
     def predict(self, X_eval):
-        return np.full(len(X_eval), self.q_shift)
+        N = len(X_eval)
+        if N == 0:
+            return np.array([])
+        eval_vals = X_eval.values if hasattr(X_eval, "values") else np.asarray(X_eval)
+        if eval_vals.ndim == 2:
+            lag1 = eval_vals[:, 0]
+        else:
+            lag1 = np.roll(eval_vals, 1)
+            lag1[0] = self.last_y
+        return np.array(lag1, dtype=float) + self.q_shift
 
 
 class HistoricalMeanModel:
@@ -50,34 +66,57 @@ class ARIMABenchmarkModel:
         self.quantile = quantile
         self.mean_val = 0.0
         self.resid_std = 1.0
+        self.phi = 0.0
+        self.last_y = 0.0
         self.res = None
 
     def fit(self, y):
-        self.mean_val = float(np.mean(y))
+        y_arr = np.asarray(y, dtype=float)
+        if len(y_arr) == 0:
+            return
+        self.mean_val = float(np.mean(y_arr))
+        self.last_y = float(y_arr[-1])
         try:
-            mod = ARIMA(y, order=self.order)
+            mod = ARIMA(y_arr, order=self.order)
             self.res = mod.fit()
             resid = getattr(self.res, "resid", None)
             if resid is not None and len(resid) > 1:
                 self.resid_std = float(np.std(resid))
             else:
-                self.resid_std = float(np.std(y)) if len(y) > 1 else 1.0
+                self.resid_std = float(np.std(y_arr)) if len(y_arr) > 1 else 1.0
+
+            params = getattr(self.res, "params", {})
+            self.phi = 0.0
+            if hasattr(params, "index"):
+                for k in params.index:
+                    if "ar.L" in str(k):
+                        self.phi = float(params[k])
+                        break
+            elif len(params) > 1:
+                self.phi = float(params[1])
         except Exception:
             self.res = None
-            self.resid_std = float(np.std(y)) if len(y) > 1 else 1.0
+            self.phi = 0.0
+            self.resid_std = float(np.std(y_arr)) if len(y_arr) > 1 else 1.0
 
     def predict(self, X_eval):
         shift = 0.0
         if self.quantile != 0.50:
             shift = float(norm.ppf(self.quantile)) * self.resid_std
 
-        if self.res is not None:
-            try:
-                fc = self.res.forecast(steps=len(X_eval))
-                return np.array(fc) + shift
-            except Exception:
-                pass
-        return np.full(len(X_eval), self.mean_val + shift)
+        N = len(X_eval)
+        if N == 0:
+            return np.array([])
+
+        eval_vals = X_eval.values if hasattr(X_eval, "values") else np.asarray(X_eval)
+        if eval_vals.ndim == 2:
+            lag1 = eval_vals[:, 0]
+        else:
+            lag1 = np.roll(eval_vals, 1)
+            lag1[0] = self.last_y
+
+        cond_mean = self.mean_val + self.phi * (np.array(lag1, dtype=float) - self.mean_val)
+        return cond_mean + shift
 
 
 class RandomForestBenchmarkModel:

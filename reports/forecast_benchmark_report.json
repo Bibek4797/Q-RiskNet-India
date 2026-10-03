@@ -2,7 +2,7 @@
     "target_sector": "Bank",
     "evaluation_method": "Chronological Walk-Forward Expanding Window",
     "best_performing_model": "Quantile LSTM",
-    "best_model_rmse": 2.8381,
-    "best_model_pinball_loss": 0.1785,
+    "best_model_rmse": 2.5704,
+    "best_model_pinball_loss": 0.1747,
     "best_model_directional_accuracy": 50.0
 }

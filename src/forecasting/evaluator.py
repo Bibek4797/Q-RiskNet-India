@@ -67,27 +67,25 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
 
             sub_returns = returns_df.iloc[:t]
 
-            # Fit linear Quantile VAR (QVAR) on expanding history
+            # Fit linear Quantile VAR (QVAR) on expanding history (1-step ahead rolling)
             try:
                 qvar_m = QVARModel(p=2, quantile=quantile)
                 qvar_m.fit(sub_returns)
-                qvar_fc = qvar_m.forecast(sub_returns, steps=len(y_te))
-                if target_sector in qvar_fc.columns:
-                    preds_records["Quantile VAR (QVAR)"].extend(qvar_fc[target_sector].values[:len(y_te)])
-                else:
-                    preds_records["Quantile VAR (QVAR)"].extend(np.full(len(y_te), float(y_tr.mean())))
+                for k in range(t, t_end):
+                    q_hist = returns_df.iloc[k - qvar_m.p : k]
+                    pred = qvar_m.predict_next(q_hist)
+                    preds_records["Quantile VAR (QVAR)"].append(float(pred[target_sector]))
             except Exception:
                 preds_records["Quantile VAR (QVAR)"].extend(np.full(len(y_te), float(y_tr.mean())))
 
-            # Fit PyTorch Quantile LSTM on expanding history
+            # Fit PyTorch Quantile LSTM on expanding history (1-step ahead rolling)
             try:
-                lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=quantile, epochs=15, early_stopping=True, patience=3)
+                lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=quantile, epochs=10, early_stopping=True, patience=2)
                 lstm_m.fit(sub_returns)
-                lstm_fc = lstm_m.forecast(sub_returns, steps=len(y_te))
-                if target_sector in lstm_fc.columns:
-                    preds_records["Quantile LSTM"].extend(lstm_fc[target_sector].values[:len(y_te)])
-                else:
-                    preds_records["Quantile LSTM"].extend(np.full(len(y_te), float(y_tr.mean())))
+                for k in range(t, t_end):
+                    l_hist = returns_df.iloc[k - lstm_m.seq_len : k]
+                    pred = lstm_m.predict_next(l_hist)
+                    preds_records["Quantile LSTM"].append(float(pred[target_sector]))
             except Exception:
                 preds_records["Quantile LSTM"].extend(np.full(len(y_te), float(y_tr.mean())))
 
@@ -142,6 +140,7 @@ def run_all_forecast_benchmarks(returns_df, target_sector, quantile=0.05, train_
     """
     Master Forecasting Benchmark Evaluator.
     Runs both out-of-sample split and walk-forward evaluations across benchmarks, QVAR, and Quantile LSTM.
+    All models are rigorously evaluated on 1-step-ahead conditional out-of-sample forecasting.
     """
     with diag.DiagnosticTimer(f"Master Forecasting Benchmark Suite for {target_sector} (tau={quantile})"):
         summary_df, dm_df = run_walk_forward_evaluation(returns_df, target_sector=target_sector, initial_ratio=0.70, step=15, quantile=quantile)
@@ -151,7 +150,7 @@ def run_all_forecast_benchmarks(returns_df, target_sector, quantile=0.05, train_
         split_idx = int(len(X) * train_ratio)
         y_test = y.iloc[split_idx:]
         
-        # Generate baseline predictions for display chart
+        # 1-step ahead baseline predictions for display chart
         rw = RandomWalkModel(quantile=quantile)
         rw.fit(y.iloc[:split_idx].values)
         rw_p = rw.predict(y_test.values)
@@ -164,16 +163,25 @@ def run_all_forecast_benchmarks(returns_df, target_sector, quantile=0.05, train_
         svr.fit(X.iloc[:split_idx].values, y.iloc[:split_idx].values)
         svr_p = svr.predict(X.iloc[split_idx:].values)
 
-        # QVAR on baseline split
+        # QVAR 1-step rolling predictions on test set
         qvar_m = QVARModel(p=2, quantile=quantile)
         qvar_m.fit(returns_df.iloc[:split_idx])
-        qvar_fc = qvar_m.forecast(returns_df.iloc[:split_idx], steps=len(y_test))
-        qvar_p = qvar_fc[target_sector].values[:len(y_test)] if target_sector in qvar_fc.columns else np.zeros(len(y_test))
+        qvar_preds = []
+        for t in range(split_idx, len(returns_df)):
+            q_hist = returns_df.iloc[t - qvar_m.p : t]
+            pred = qvar_m.predict_next(q_hist)
+            qvar_preds.append(float(pred[target_sector]))
+        qvar_p = np.array(qvar_preds)[:len(y_test)]
 
-        lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=quantile, epochs=20, early_stopping=True, patience=3)
+        # Quantile LSTM 1-step rolling predictions on test set
+        lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=quantile, epochs=15, early_stopping=True, patience=3)
         lstm_m.fit(returns_df.iloc[:split_idx])
-        lstm_fc = lstm_m.forecast(returns_df.iloc[:split_idx], steps=len(y_test))
-        lstm_p = lstm_fc[target_sector].values[:len(y_test)] if target_sector in lstm_fc.columns else np.zeros(len(y_test))
+        lstm_preds = []
+        for t in range(split_idx, len(returns_df)):
+            l_hist = returns_df.iloc[t - lstm_m.seq_len : t]
+            pred = lstm_m.predict_next(l_hist)
+            lstm_preds.append(float(pred[target_sector]))
+        lstm_p = np.array(lstm_preds)[:len(y_test)]
 
         preds_df = pd.DataFrame({
             "Actual": y_test,

@@ -138,72 +138,27 @@ def render_page(returns_df):
     st.markdown("### Risk Backbone (Minimum Spanning Tree — Prim's Algorithm)")
     st.caption(
         "Extracts the acyclic topological backbone connecting all 10 sectoral indices via the strongest risk channels "
-        "using Prim's greedy minimum spanning tree algorithm."
+        "using Prim's algorithm on the total bilateral spillover weights ($W_{ij} = S_{ij} + S_{ji}$) from the directed network above."
     )
 
-    mst_col1, mst_col2 = st.columns([1, 1])
-    with mst_col1:
-        mst_source = st.selectbox(
-            "Backbone Source Space",
-            ["Directed Spillover Matrix (Diebold-Yilmaz / GJR-GARCH)", "Pearson Correlation Distance (Mantegna 1999)"],
-            index=0,
-            help="Extract backbone from directional systemic spillovers or pairwise return correlation distance"
-        )
-    with mst_col2:
-        if "Spillover" in mst_source:
-            pairwise_rule = st.selectbox(
-                "Pairwise Spillover Rule (Between Sector i and j)",
-                ["Sum: Total Bilateral (S_ij + S_ji)", "Max: Peak Contagion (max(S_ij, S_ji))"],
-                index=0,
-                help=(
-                    "Sum: Total 2-way bilateral spillover exchange. "
-                    "Max: Peak one-way contagion vulnerability."
-                )
-            )
-        else:
-            st.markdown(
-                "<div style='font-size:0.75rem; color:#94a3b8; padding-top:28px;'>"
-                "Mantegna metric: <code>d_ij = √(2(1 - ρ_ij))</code> (Symmetric: ρ_ij = ρ_ji)"
-                "</div>",
-                unsafe_allow_html=True
-            )
-            pairwise_rule = None
-
     try:
-        if "Spillover" in mst_source:
-            method_key = "max" if (pairwise_rule and "Max" in pairwise_rule) else "sum"
-            dist_matrix, weights_df = mst.compute_spillover_distance(spill_df, method=method_key)
-            mst_g = mst.construct_mst(dist_matrix, algorithm="prim", weights_df=weights_df)
-            rule_label = "Peak Contagion: max(S_ij, S_ji)" if method_key == "max" else "Total Bilateral: S_ij + S_ji"
-            plot_title = f"Systemic Risk Backbone — Prim's MST (Spillover: {rule_label})"
-        else:
-            dist_matrix = mst.compute_correlation_distance(returns_df)
-            weights_df = None
-            mst_g = mst.construct_mst(dist_matrix, algorithm="prim")
-            plot_title = "Systemic Risk Backbone — Prim's MST (Mantegna Correlation Distance)"
+        dist_matrix, weights_df = mst.compute_spillover_distance(spill_df, method="sum")
+        mst_g = mst.construct_mst(dist_matrix, algorithm="prim", weights_df=weights_df)
+        plot_title = "Systemic Risk Backbone — Prim's MST (Bilateral Weight Sum: S_ij + S_ji)"
 
         render_mst_graph(mst_g, dist_matrix, title=plot_title)
 
         # MST Edges Detail Table
         mst_edges = []
         for u, v, d in mst_g.edges(data=True):
-            row = {
+            mst_edges.append({
                 "Sector 1": u,
                 "Sector 2": v,
-                "MST Distance": round(float(d.get("weight", 0.0)), 4)
-            }
-            if "bilateral_weight" in d:
-                row["Bilateral Spillover (%)"] = round(float(d["bilateral_weight"]), 2)
-            elif "Spillover" not in mst_source:
-                d_val = float(d.get("weight", 0.0))
-                row["Pearson Correlation (r)"] = round(1.0 - 0.5 * (d_val ** 2), 4)
-            mst_edges.append(row)
+                "Bilateral Spillover Weight (%)": round(float(d.get("bilateral_weight", 0.0)), 2),
+                "Prim MST Distance": round(float(d.get("weight", 0.0)), 4)
+            })
 
-        mst_edges_df = pd.DataFrame(mst_edges)
-        if "Bilateral Spillover (%)" in mst_edges_df.columns:
-            mst_edges_df = mst_edges_df.sort_values("Bilateral Spillover (%)", ascending=False)
-        elif "Pearson Correlation (r)" in mst_edges_df.columns:
-            mst_edges_df = mst_edges_df.sort_values("Pearson Correlation (r)", ascending=False)
+        mst_edges_df = pd.DataFrame(mst_edges).sort_values("Bilateral Spillover Weight (%)", ascending=False)
 
         with st.expander("View MST Backbone Edges (Prim's Algorithm)", expanded=False):
             st.dataframe(mst_edges_df, use_container_width=True, hide_index=True)
