@@ -141,15 +141,82 @@ def render_conditional_volatility_chart(returns_series, cond_vol_series, model_n
 
 
 def render_forecast_benchmark_chart(preds_df, target_sector, key=None):
-    """Renders Out-of-Sample actual returns vs model predictions line plot."""
-    fig = px.line(
-        preds_df,
-        x=preds_df.index,
-        y=preds_df.columns,
-        title=f"Out-of-Sample Forecast Predictions Benchmark ({target_sector})",
-        labels={"value": "Daily Log Return (%)", "variable": "Model / Actual"}
+    """
+    Renders Out-of-Sample actual returns vs model predictions line plot.
+    Explicitly distinguishes between:
+      1. Actual Daily Returns (market trajectory)
+      2. Quantile Models (Quantile LSTM & QVAR) acting as dynamic Lower Tail VaR Floor boundaries
+      3. Classical Baselines (ARIMA, SVR, Random Walk) estimating conditional mean near 0%
+    """
+    fig = go.Figure()
+
+    # 1. Actual Daily Return (muted slate line)
+    if "Actual" in preds_df.columns:
+        fig.add_trace(go.Scatter(
+            x=preds_df.index,
+            y=preds_df["Actual"],
+            mode="lines",
+            name="Actual Return",
+            line=dict(color="#64748b", width=1.5),
+            opacity=0.75
+        ))
+
+    # 2. Quantile LSTM (Bold Purple - Deep Learning Tail VaR Floor)
+    if "Quantile LSTM" in preds_df.columns:
+        fig.add_trace(go.Scatter(
+            x=preds_df.index,
+            y=preds_df["Quantile LSTM"],
+            mode="lines",
+            name="Quantile LSTM (Tail VaR Floor)",
+            line=dict(color="#a855f7", width=2.8)
+        ))
+
+    # 3. Quantile VAR (Emerald Green - Linear Tail VaR Floor)
+    if "Quantile VAR (QVAR)" in preds_df.columns:
+        fig.add_trace(go.Scatter(
+            x=preds_df.index,
+            y=preds_df["Quantile VAR (QVAR)"],
+            mode="lines",
+            name="Quantile VAR (Tail VaR Floor)",
+            line=dict(color="#10b981", width=2.2)
+        ))
+
+    # 4. Mean Baseline Models (Dotted / Dashed)
+    if "ARIMA(1,0,1)" in preds_df.columns:
+        fig.add_trace(go.Scatter(
+            x=preds_df.index,
+            y=preds_df["ARIMA(1,0,1)"],
+            mode="lines",
+            name="ARIMA(1,0,1) [Mean Baseline]",
+            line=dict(color="#f97316", width=1.5, dash="dot")
+        ))
+
+    if "SVR" in preds_df.columns:
+        fig.add_trace(go.Scatter(
+            x=preds_df.index,
+            y=preds_df["SVR"],
+            mode="lines",
+            name="SVR [Mean Baseline]",
+            line=dict(color="#f59e0b", width=1.5, dash="dot")
+        ))
+
+    if "Random Walk" in preds_df.columns:
+        fig.add_trace(go.Scatter(
+            x=preds_df.index,
+            y=preds_df["Random Walk"],
+            mode="lines",
+            name="Random Walk [Baseline]",
+            line=dict(color="#38bdf8", width=1.2, dash="dash")
+        ))
+
+    fig.update_layout(
+        title=f"Out-of-Sample Predictions Benchmark ({target_sector}) — Quantile Models Act as Tail VaR Floors",
+        xaxis_title="Date",
+        yaxis_title="Daily Log Return (%) / Tail Boundary",
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
-    _render_plotly(fig, height=450, key=key)
+    _render_plotly(fig, height=480, key=key)
 
 
 def render_feature_importance_chart(feat_series, title_str, key=None):

@@ -211,6 +211,14 @@ def _render_forecast_benchmark_section(returns_df):
             st.dataframe(summary_display[mean_cols], use_container_width=True, hide_index=True)
 
         render_forecast_benchmark_chart(fc_res["predictions_df"], evaluated_sec)
+        st.caption(
+            f"**Pictorial Interpretation Guide (τ = {evaluated_tau:.2f}):** "
+            "• **Actual Return (Gray):** Realized daily market return. "
+            "• **Quantile LSTM & QVAR (Purple & Green Lines):** Dynamic lower tail-risk boundaries (Value-at-Risk floor). "
+            f"Because they model tail risk (τ = {evaluated_tau:.2f}), they dynamically track the downside safety floor below daily market noise. "
+            f"A **VaR Breach** occurs only on the rare ~{evaluated_tau*100:.1f}% of market days when the actual return drops *below* this boundary. "
+            "• **ARIMA & SVR (Dotted Lines):** Classical mean-reverting baselines estimating central tendencies near 0%."
+        )
 
         with st.expander("Diebold-Mariano Hypothesis Tests"):
             st.caption("Evaluates whether forecast errors are statistically different. Negative DM statistic with p <= 0.05 confirms statistically significant superiority.")
