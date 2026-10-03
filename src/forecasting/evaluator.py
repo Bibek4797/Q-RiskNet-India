@@ -21,6 +21,7 @@ from src.forecasting.benchmarks import (
     create_lagged_features
 )
 from src.models.quantile_lstm import LSTMQuantileModel
+from src.models.qvar import QVARModel
 
 
 def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, step=10, quantile=0.50):
@@ -34,12 +35,12 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
 
     models = {
         "Random Walk (Naive)": RandomWalkModel(quantile=quantile),
-        "Historical Mean": HistoricalMeanModel(quantile=quantile),
         "ARIMA(1,0,1)": ARIMABenchmarkModel(quantile=quantile),
-        "Support Vector Regression": SVRBenchmarkModel(quantile=quantile)
+        "Support Vector Regression": SVRBenchmarkModel(quantile=quantile),
     }
 
     preds_records = {m: [] for m in models}
+    preds_records["Quantile VAR (QVAR)"] = []
     preds_records["Quantile LSTM"] = []
     actuals = []
 
@@ -64,9 +65,22 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
                 except Exception:
                     preds_records[name].extend(np.full(len(y_te), float(y_tr.mean())))
 
+            sub_returns = returns_df.iloc[:t]
+
+            # Fit linear Quantile VAR (QVAR) on expanding history
+            try:
+                qvar_m = QVARModel(p=2, quantile=quantile)
+                qvar_m.fit(sub_returns)
+                qvar_fc = qvar_m.forecast(sub_returns, steps=len(y_te))
+                if target_sector in qvar_fc.columns:
+                    preds_records["Quantile VAR (QVAR)"].extend(qvar_fc[target_sector].values[:len(y_te)])
+                else:
+                    preds_records["Quantile VAR (QVAR)"].extend(np.full(len(y_te), float(y_tr.mean())))
+            except Exception:
+                preds_records["Quantile VAR (QVAR)"].extend(np.full(len(y_te), float(y_tr.mean())))
+
             # Fit PyTorch Quantile LSTM on expanding history
             try:
-                sub_returns = returns_df.iloc[:t]
                 lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=quantile, epochs=15, early_stopping=True, patience=3)
                 lstm_m.fit(sub_returns)
                 lstm_fc = lstm_m.forecast(sub_returns, steps=len(y_te))
@@ -93,21 +107,33 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
                 **m_dict
             })
 
-        summary_df = pd.DataFrame(results_list).sort_values(by="RMSE")
+        summary_df = pd.DataFrame(results_list).sort_values(by="Pinball_Loss")
         
-        # Diebold-Mariano test vs Random Walk
+        # Diebold-Mariano test vs Random Walk and vs QVAR
         rw_err = errors_dict.get("Random Walk (Naive)")
+        qvar_err = errors_dict.get("Quantile VAR (QVAR)")
+        lstm_err = errors_dict.get("Quantile LSTM")
+
         dm_list = []
         if rw_err is not None:
             for name, err in errors_dict.items():
                 if name != "Random Walk (Naive)":
                     dm_res = diebold_mariano_test(rw_err, err)
                     dm_list.append({
-                        "Model": name,
+                        "Comparison": f"{name} vs Random Walk",
                         "DM_Statistic": dm_res["dm_stat"],
                         "DM_p_Value": dm_res["p_value"],
                         "Significantly_Superior": dm_res["p_value"] <= 0.05
                     })
+
+        if qvar_err is not None and lstm_err is not None:
+            dm_qvar = diebold_mariano_test(qvar_err, lstm_err)
+            dm_list.append({
+                "Comparison": "Quantile LSTM vs QVAR (Nonlinear vs Linear)",
+                "DM_Statistic": dm_qvar["dm_stat"],
+                "DM_p_Value": dm_qvar["p_value"],
+                "Significantly_Superior": dm_qvar["p_value"] <= 0.05
+            })
 
         return summary_df, pd.DataFrame(dm_list)
 
@@ -115,7 +141,7 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
 def run_all_forecast_benchmarks(returns_df, target_sector, quantile=0.05, train_ratio=0.80, save_reports=True):
     """
     Master Forecasting Benchmark Evaluator.
-    Runs both out-of-sample split and walk-forward evaluations across benchmarks and Quantile LSTM.
+    Runs both out-of-sample split and walk-forward evaluations across benchmarks, QVAR, and Quantile LSTM.
     """
     with diag.DiagnosticTimer(f"Master Forecasting Benchmark Suite for {target_sector} (tau={quantile})"):
         summary_df, dm_df = run_walk_forward_evaluation(returns_df, target_sector=target_sector, initial_ratio=0.70, step=15, quantile=quantile)
@@ -138,6 +164,12 @@ def run_all_forecast_benchmarks(returns_df, target_sector, quantile=0.05, train_
         svr.fit(X.iloc[:split_idx].values, y.iloc[:split_idx].values)
         svr_p = svr.predict(X.iloc[split_idx:].values)
 
+        # QVAR on baseline split
+        qvar_m = QVARModel(p=2, quantile=quantile)
+        qvar_m.fit(returns_df.iloc[:split_idx])
+        qvar_fc = qvar_m.forecast(returns_df.iloc[:split_idx], steps=len(y_test))
+        qvar_p = qvar_fc[target_sector].values[:len(y_test)] if target_sector in qvar_fc.columns else np.zeros(len(y_test))
+
         lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=quantile, epochs=20, early_stopping=True, patience=3)
         lstm_m.fit(returns_df.iloc[:split_idx])
         lstm_fc = lstm_m.forecast(returns_df.iloc[:split_idx], steps=len(y_test))
@@ -148,6 +180,7 @@ def run_all_forecast_benchmarks(returns_df, target_sector, quantile=0.05, train_
             "Random Walk": rw_p,
             "ARIMA(1,0,1)": ar_p,
             "SVR": svr_p,
+            "Quantile VAR (QVAR)": qvar_p,
             "Quantile LSTM": lstm_p
         }, index=y_test.index)
 

@@ -147,11 +147,17 @@ def calculate_forecast_metrics(y_true, y_pred, quantile=0.50):
     dir_acc = np.mean(sign_true == sign_pred) * 100.0
     pinball = calculate_pinball_loss(y_true, y_pred, quantile=quantile)
 
+    if quantile <= 0.50:
+        breach_rate = np.mean(y_true < y_pred) * 100.0
+    else:
+        breach_rate = np.mean(y_true > y_pred) * 100.0
+
     return {
         "RMSE": round(float(rmse), 4),
         "MAE": round(float(mae), 4),
         "Directional_Accuracy_Pct": round(float(dir_acc), 2),
-        "Pinball_Loss": round(float(pinball), 4)
+        "Pinball_Loss": round(float(pinball), 4),
+        "VaR_Breach_Rate_Pct": round(float(breach_rate), 2)
     }
 
 

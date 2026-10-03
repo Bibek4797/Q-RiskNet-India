@@ -179,24 +179,32 @@ def _render_forecast_benchmark_section(returns_df):
         if "Directional_Accuracy_Pct" in summary_display.columns:
             summary_display = summary_display.drop(columns=["Directional_Accuracy_Pct"])
 
+        target_breach = evaluated_tau * 100.0
         col_rename = {
             "RMSE": "RMSE",
             "MAE": "MAE",
-            "Pinball_Loss": "Pinball Loss (quantile)"
+            "Pinball_Loss": "Pinball Loss (Quantile Loss)",
+            "VaR_Breach_Rate_Pct": f"VaR Breach Rate (%) [Target: {target_breach:.1f}%]"
         }
         friendly_fc = summary_display.rename(columns=col_rename)
+        min_cols = [c for c in ["Pinball Loss (Quantile Loss)", "RMSE", "MAE"] if c in friendly_fc.columns]
 
         try:
-            styled_fc = friendly_fc.style \
-                .highlight_min(subset=["RMSE", "MAE", "Pinball Loss (quantile)"], color="#10b981")
+            styled_fc = friendly_fc.style.highlight_min(subset=min_cols, color="#10b981")
             st.dataframe(styled_fc, use_container_width=True)
         except Exception:
             st.dataframe(friendly_fc, use_container_width=True)
 
+        st.caption(
+            f"**Evaluation Guide (τ = {evaluated_tau:.2f}):** "
+            f"• **Pinball Loss**: The master quantile loss function (lower = superior tail-risk estimation). "
+            f"• **VaR Breach Rate (%)**: Percentage of days where actual loss exceeded the forecast. Theoretical target is **{target_breach:.1f}%**."
+        )
+
         render_forecast_benchmark_chart(fc_res["predictions_df"], evaluated_sec)
 
-        with st.expander("Diebold-Mariano test (vs naive random walk)"):
-            st.caption("Tests whether each model's forecast errors are statistically different from a naive random walk. Negative DM statistic = model outperforms random walk.")
+        with st.expander("Diebold-Mariano Hypothesis Tests"):
+            st.caption("Evaluates whether forecast errors are statistically different. Negative DM statistic with p <= 0.05 confirms statistically significant superiority.")
             st.dataframe(fc_res["dm_df"], use_container_width=True)
 
     elif not run_fc_btn:
