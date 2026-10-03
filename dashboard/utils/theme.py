@@ -37,23 +37,54 @@ def inject_custom_css():
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
     [data-testid="stToolbar"] { visibility: hidden; }
-    header {
+
+    /* Ensure Streamlit top header doesn't block the sidebar button */
+    header[data-testid="stHeader"] {
         background: transparent !important;
+        z-index: 1000 !important;
     }
-    /* Ensure the sidebar open/collapse chevron button is always visible and clickable */
-    [data-testid="stSidebarCollapsedControl"] {
-        visibility: visible !important;
+
+    /* Force sidebar open/collapse toggle chevron to always be prominently visible */
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"] {
+        position: fixed !important;
+        top: 14px !important;
+        left: 14px !important;
+        z-index: 999999 !important;
         display: flex !important;
-        color: #c7d2fe !important;
-        background: rgba(99, 102, 241, 0.15) !important;
-        border: 1px solid rgba(99, 102, 241, 0.35) !important;
-        border-radius: 6px !important;
-        padding: 4px !important;
-        margin: 6px 0 0 10px !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: #1e1b4b !important;
+        border: 1.5px solid #6366f1 !important;
+        border-radius: 8px !important;
+        padding: 6px 10px !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5) !important;
+        cursor: pointer !important;
     }
-    [data-testid="stSidebarCollapsedControl"]:hover {
-        background: rgba(99, 102, 241, 0.3) !important;
-        color: #ffffff !important;
+    [data-testid="stSidebarCollapsedControl"]:hover,
+    [data-testid="collapsedControl"]:hover {
+        background: #312e81 !important;
+        border-color: #818cf8 !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] svg,
+    [data-testid="collapsedControl"] svg {
+        fill: #c7d2fe !important;
+        stroke: #c7d2fe !important;
+        width: 20px !important;
+        height: 20px !important;
+    }
+    /* When sidebar is open, keep collapse button visible and styled */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapseButton"] button {
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #c7d2fe !important;
+    }
+    [data-testid="stSidebarCollapseButton"] svg {
+        fill: #c7d2fe !important;
+        stroke: #c7d2fe !important;
+        width: 18px !important;
+        height: 18px !important;
     }
 
     /* ── Header ─────────────────────────────────────────── */
