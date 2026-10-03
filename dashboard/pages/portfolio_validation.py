@@ -1,5 +1,5 @@
 """
-Q-RiskNet India — Portfolio Risk & Model Validation Section
+Q-RiskNet India — Model Benchmark & Validation Section
 Copyright (c) 2026 Bibek Rout
 """
 import streamlit as st
@@ -15,12 +15,12 @@ from dashboard.components.charts import render_forecast_benchmark_chart, _render
 from dashboard.components.exports import download_csv
 
 # ==============================================================================
-# FEATURE FLAG: Portfolio Optimization
-# (Temporarily hidden from UI per user request / force override.
-#  All underlying algorithms & backtest code remain intact.
-#  To restore Portfolio Optimization tab: Set SHOW_PORTFOLIO_OPTIMIZATION = True)
+# FEATURE FLAGS (Controlled for strict CV alignment)
+# (Underlying algorithms in src/ remain 100% intact. Set to True to restore in UI)
 # ==============================================================================
 SHOW_PORTFOLIO_OPTIMIZATION = False
+SHOW_VAR_BACKTESTING = False
+SHOW_ROBUSTNESS_ANALYSIS = False
 
 # ── Stress scenario labels ────────────────────────────────────────────────────
 _STRESS_LABELS = {
@@ -32,7 +32,6 @@ _STRESS_LABELS = {
 
 def _render_portfolio_section(returns_df):
     """Renders the Portfolio Risk & Optimization sub-tab."""
-    # ── Portfolio Setup ───────────────────────────────────────────
     with st.expander("Portfolio assumptions", expanded=False):
         st.markdown("""
 - **Equal Weight** — Baseline: equal allocation across all selected sectors (1/K).
@@ -40,7 +39,7 @@ def _render_portfolio_section(returns_df):
 - **Risk Parity (ERC)** — Equal Risk Contribution. Each sector contributes an identical fraction of total portfolio volatility.
 - **CVaR Optimization** — Minimizes the average expected loss beyond the 95th percentile (Expected Shortfall).
 
-All strategies are subject to: each weight ≥ 0, sum of weights = 1, max single position ≤ w_max.
+All strategies are subject to: each weight >= 0, sum of weights = 1, max single position <= w_max.
         """)
 
     max_w = st.slider(
@@ -62,12 +61,9 @@ All strategies are subject to: each weight ≥ 0, sum of weights = 1, max single
 
     if bt_res is not None:
         st.markdown("---")
-
-        # ── Performance Comparison ────────────────────────────────
         st.markdown("**Strategy Comparison**")
         summary = bt_res["summary_df"]
 
-        # Rename columns to plain English
         col_rename = {
             "Annualized_Return_Pct": "Return (% p.a.)",
             "Annualized_Vol_Pct": "Volatility (% p.a.)",
@@ -86,7 +82,6 @@ All strategies are subject to: each weight ≥ 0, sum of weights = 1, max single
         except Exception:
             st.dataframe(friendly_summary, use_container_width=True)
 
-        # ── Equity Curves ─────────────────────────────────────────
         c_eq1, c_eq2 = st.columns([4, 1])
         with c_eq1:
             st.markdown("**Cumulative Growth (Base = 100)**")
@@ -104,7 +99,6 @@ All strategies are subject to: each weight ≥ 0, sum of weights = 1, max single
         )
         _render_plotly(fig_eq, height=400, key=f"eq_curves_{st.session_state.get('key_equity_curves', 0)}")
 
-        # ── Allocation Weights ─────────────────────────────────────
         st.markdown("**Sector Weights by Strategy (%)**")
         weights_df = pd.DataFrame(bt_res["weights_dict"]) * 100.0
         fig_w = px.bar(
@@ -115,7 +109,6 @@ All strategies are subject to: each weight ≥ 0, sum of weights = 1, max single
         )
         _render_plotly(fig_w, height=360)
 
-        # ── Stress Testing ─────────────────────────────────────────
         st.markdown("---")
         st.markdown("**Stress Test Scenarios**")
         st.caption(
@@ -137,11 +130,10 @@ All strategies are subject to: each weight ≥ 0, sum of weights = 1, max single
         st.info("Click **Run Portfolio Optimization & Backtest** to compare allocation strategies.")
 
 
-def _render_validation_section(returns_df):
-    """Renders the Model & Tail-Risk Validation section."""
-    # ── Forecast Validation ───────────────────────────────────────
-    st.markdown("**Forecast Accuracy**")
-    st.caption("Walk-forward out-of-sample evaluation — no look-ahead bias. Models are trained chronologically on expanding windows.")
+def _render_forecast_benchmark_section(returns_df):
+    """Renders the PyTorch Quantile LSTM vs ARIMA & SVR Walk-Forward Benchmark."""
+    st.markdown("**Walk-Forward Model Benchmark (PyTorch Quantile LSTM vs ARIMA & SVR)**")
+    st.caption("Chronological expanding-window walk-forward evaluation (no look-ahead bias). Benchmarks deep-learning tail-risk modeling against classical econometric and ML baselines.")
 
     sec = st.selectbox(
         "Target sector",
@@ -149,10 +141,10 @@ def _render_validation_section(returns_df):
         key="pv_fc_sec",
         label_visibility="visible"
     )
-    run_fc_btn = st.button("Run Walk-Forward Evaluation", type="primary", key="run_pv_fc")
+    run_fc_btn = st.button("Run Walk-Forward Benchmark", type="primary", key="run_pv_fc")
 
     if run_fc_btn:
-        with st.spinner(f"Running walk-forward benchmark for {sec}…"):
+        with st.spinner(f"Evaluating models on expanding windows for {sec}…"):
             try:
                 fc_res = evaluator.run_all_forecast_benchmarks(
                     returns_df, target_sector=sec, train_ratio=0.80, save_reports=True
@@ -166,16 +158,15 @@ def _render_validation_section(returns_df):
     target_sec = st.session_state.get("pv_fc_sec", sec)
 
     if fc_res is not None:
-        st.markdown(f"*Results for {target_sec}*")
+        st.markdown(f"*Out-of-sample benchmark results for {target_sec}*")
 
-        # Rename columns to plain English
-        fc_rename = {
+        col_rename = {
             "RMSE": "RMSE",
             "MAE": "MAE",
             "Directional_Accuracy_Pct": "Directional Accuracy (%)",
             "Pinball_Loss": "Pinball Loss (quantile)"
         }
-        friendly_fc = fc_res["summary_df"].rename(columns=fc_rename)
+        friendly_fc = fc_res["summary_df"].rename(columns=col_rename)
 
         try:
             styled_fc = friendly_fc.style \
@@ -187,22 +178,20 @@ def _render_validation_section(returns_df):
 
         render_forecast_benchmark_chart(fc_res["predictions_df"], target_sec)
 
-        # ── Statistical Comparison ────────────────────────────────
         with st.expander("Diebold-Mariano test (vs naive random walk)"):
             st.caption("Tests whether each model's forecast errors are statistically different from a naive random walk. Negative DM statistic = model outperforms random walk.")
             st.dataframe(fc_res["dm_df"], use_container_width=True)
 
     elif not run_fc_btn:
-        st.info("Select a sector and click **Run Walk-Forward Evaluation** to assess model accuracy.")
+        st.info("Select a sector and click **Run Walk-Forward Benchmark** to evaluate PyTorch Quantile LSTM against ARIMA and SVR.")
 
-    st.markdown("---")
 
-    # ── VaR Backtesting ───────────────────────────────────────────
+def _render_var_backtest_section(returns_df):
+    """Renders the Kupiec and Christoffersen VaR Backtesting suite."""
     st.markdown("**VaR Backtesting**")
     st.caption(
-        "Verifies whether the number of VaR exceptions (days where actual loss exceeded forecast) "
-        "matches theoretical frequency. Kupiec tests exception counts; Christoffersen tests whether "
-        "exceptions cluster in time."
+        "Verifies whether the number of VaR exceptions matches theoretical frequency. "
+        "Kupiec tests exception counts; Christoffersen tests whether exceptions cluster in time."
     )
 
     run_var_btn = st.button("Run VaR Backtests", key="run_var_bt")
@@ -222,17 +211,13 @@ def _render_validation_section(returns_df):
     elif not run_var_btn:
         st.info("Click **Run VaR Backtests** to validate historical Value-at-Risk exceptions.")
 
-    st.markdown("---")
 
-    # ── Robustness ────────────────────────────────────────────────
+def _render_robustness_section(returns_df):
+    """Renders parameter robustness sensitivity tables."""
     st.markdown("**Robustness Analysis**")
-    st.caption(
-        "Checks whether the main findings change materially when key parameters are varied — "
-        "rolling window length (W), forecast horizon (H), and network edge threshold."
-    )
+    st.caption("Evaluates stability when rolling window length (W) and forecast horizon (H) are varied.")
 
     run_sens_btn = st.button("Run Robustness Analysis", key="run_sens")
-
     if run_sens_btn:
         with st.spinner("Evaluating parameter sensitivity…"):
             try:
@@ -255,7 +240,7 @@ def _render_validation_section(returns_df):
 
 
 def render_page(returns_df, cfg):
-    """Renders the Portfolio Risk & Model Validation section."""
+    """Renders the Model Benchmark & Validation section."""
     if SHOW_PORTFOLIO_OPTIMIZATION:
         st.markdown("### Portfolio Risk & Validation")
         st.caption("Compare allocation strategies, evaluate model forecast accuracy, and stress-test portfolios under adverse scenarios.")
@@ -263,8 +248,22 @@ def render_page(returns_df, cfg):
         with tab_port:
             _render_portfolio_section(returns_df)
         with tab_val:
-            _render_validation_section(returns_df)
+            _render_forecast_benchmark_section(returns_df)
+            if SHOW_VAR_BACKTESTING:
+                st.markdown("---")
+                _render_var_backtest_section(returns_df)
+            if SHOW_ROBUSTNESS_ANALYSIS:
+                st.markdown("---")
+                _render_robustness_section(returns_df)
     else:
-        st.markdown("### 🛡️ Model Validation")
-        st.caption("Evaluate walk-forward forecast accuracy across models (QVAR, Quantile LSTM, AR, Naive), backtest Value-at-Risk exceptions, and verify robustness.")
-        _render_validation_section(returns_df)
+        st.markdown("### 🤖 Model Benchmark")
+        st.caption("Developed a PyTorch Quantile LSTM under Pinball Loss and benchmarked it against ARIMA(1,0,1) and Support Vector Regression (SVR) across chronological walk-forward windows.")
+        _render_forecast_benchmark_section(returns_df)
+
+        if SHOW_VAR_BACKTESTING:
+            st.markdown("---")
+            _render_var_backtest_section(returns_df)
+
+        if SHOW_ROBUSTNESS_ANALYSIS:
+            st.markdown("---")
+            _render_robustness_section(returns_df)

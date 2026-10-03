@@ -37,7 +37,7 @@ def render_sidebar():
             "📈 Market & Risk",
             "🌊 Connectedness",
             "🕸️ Network",
-            "🛡️ Model Validation"
+            "🤖 Model Benchmark"
         ],
         index=0,
         label_visibility="collapsed"

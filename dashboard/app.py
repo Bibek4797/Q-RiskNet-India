@@ -104,7 +104,7 @@ def main():
     elif page == "🕸️ Network":
         network_page.render_page(returns_df)
 
-    elif page in ["🛡️ Model Validation", "💼 Portfolio & Validation"]:
+    elif page in ["🤖 Model Benchmark", "🛡️ Model Validation", "💼 Portfolio & Validation"]:
         portfolio_validation_page.render_page(returns_df, cfg)
 
 
