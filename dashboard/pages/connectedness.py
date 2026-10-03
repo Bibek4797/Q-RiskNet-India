@@ -17,32 +17,62 @@ from dashboard.components.exports import download_csv
 
 
 # ── Regime label helper ───────────────────────────────────────────────────────
-def _regime_label(q: float) -> str:
-    if q <= 0.10:
-        return "Downside / tail-risk conditions"
-    elif q <= 0.25:
-        return "Below-median market conditions"
-    elif q <= 0.40:
-        return "Mild-downside market conditions"
-    elif q <= 0.60:
-        return "Normal / median market conditions"
-    elif q <= 0.75:
-        return "Mild-upside market conditions"
-    elif q <= 0.90:
-        return "Above-median market conditions"
+def _regime_label(q: float, is_vol: bool = False) -> str:
+    if is_vol:
+        if q <= 0.10:
+            return "Tranquil / low-volatility regime"
+        elif q <= 0.25:
+            return "Below-median volatility regime"
+        elif q <= 0.40:
+            return "Mild-volatility regime"
+        elif q <= 0.60:
+            return "Normal / median volatility regime"
+        elif q <= 0.75:
+            return "Elevated volatility regime"
+        elif q <= 0.90:
+            return "High market-stress regime"
+        else:
+            return "Extreme market panic / volatility spike"
     else:
-        return "Bullish / upper-tail market conditions"
+        if q <= 0.10:
+            return "Downside / tail-crash conditions"
+        elif q <= 0.25:
+            return "Below-median market conditions"
+        elif q <= 0.40:
+            return "Mild-downside market conditions"
+        elif q <= 0.60:
+            return "Normal / median market conditions"
+        elif q <= 0.75:
+            return "Mild-upside market conditions"
+        elif q <= 0.90:
+            return "Above-median market conditions"
+        else:
+            return "Bullish / upper-tail rally conditions"
+
+
+@st.cache_data(show_spinner="Estimating asymmetric GJR-GARCH(1,1,1) conditional volatilities…")
+def _compute_garch_volatilities(returns_tuple):
+    """Computes and caches GJR-GARCH conditional volatility series for each sector."""
+    returns_df = pd.DataFrame(list(returns_tuple[1]), index=returns_tuple[0], columns=returns_tuple[2])
+    garch_dict = {}
+    for col in returns_df.columns:
+        try:
+            garch_dict[col] = garch.estimate_garch_volatility(returns_df[col])
+        except Exception:
+            garch_dict[col] = returns_df[col].rolling(10).std().bfill()
+    return pd.DataFrame(garch_dict, index=returns_df.index).dropna()
 
 
 def render_page(model_input, returns_df, cfg):
     """Renders the Connectedness section with user-friendly risk flow labels."""
 
     st.markdown("### Systemic Risk Flow & Connectedness")
-    st.caption("Measure how much risk each sector transmits to or receives from others. High connectedness signals that shocks will spread rapidly across the market.")
+    st.caption("Measure how much risk or volatility each sector transmits to or receives from others. High connectedness signals that shocks will spread rapidly across the market.")
 
     # ── Show cached results if available (no forced rerun) ─────────────
     metrics = st.session_state.get("metrics")
     spill_df = st.session_state.get("spillover_df")
+    is_vol_state = st.session_state.get("is_vol_domain", False)
 
     # Display active model badge if exists
     active_label = st.session_state.get("active_model_label")
@@ -58,8 +88,8 @@ def render_page(model_input, returns_df, cfg):
 
     # ── Tab 1: Spillover Map ──────────────────────────────────────────
     with conn_tab:
-        # Controls — clean row focusing purely on Log Returns
-        c0, c1, c2 = st.columns([2.5, 3.0, 1.2])
+        # Controls — prominent two-row layout
+        c0, c1 = st.columns([1, 1])
         with c0:
             model_engine = st.selectbox(
                 "Model Engine",
@@ -68,25 +98,45 @@ def render_page(model_input, returns_df, cfg):
                 help="Choose between equation-by-equation Quantile Autoregression (QVAR) or Deep Learning PyTorch Quantile LSTM trained with Pinball Loss."
             )
         with c1:
+            risk_domain = st.selectbox(
+                "Risk Domain (Input Space)",
+                ["Log Returns (Return / Price Contagion)", "Conditional Volatility: GJR-GARCH (Uncertainty / Panic Contagion)"],
+                key="conn_risk_domain",
+                help="Choose whether to model price spillovers using raw log returns, or market uncertainty/panic spillovers using asymmetric GJR-GARCH conditional volatilities."
+            )
+
+        c2, c3 = st.columns([3, 1])
+        with c2:
             quantile = st.select_slider(
                 "Market Regime (Quantile τ)",
                 options=[0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95],
                 value=0.50,
                 key="conn_tau"
             )
-        with c2:
+        with c3:
             st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
             run_btn = st.button("Run Analysis", type="primary", key="run_spill")
 
-        st.caption(f"τ = {quantile:.2f} — {_regime_label(quantile)}. Lower quantiles capture tail/downside risk spillovers on log returns.")
+        is_vol = "GJR-GARCH" in risk_domain
+        pfx = "Volatility" if is_vol else "Risk"
 
-        # Input data is strictly percentage log returns
-        active_input = returns_df.copy()
+        if is_vol:
+            st.caption(f"τ = {quantile:.2f} — {_regime_label(quantile, is_vol=True)}. Modeling asymmetric GJR-GARCH second-moment uncertainty / fear spillovers.")
+        else:
+            st.caption(f"τ = {quantile:.2f} — {_regime_label(quantile, is_vol=False)}. Modeling first-moment price return spillovers.")
 
         # Run analysis
         if run_btn:
             try:
-                with st.spinner(f"Fitting {model_engine} at τ={quantile:.2f} and simulating +2σ GIRF spillovers…"):
+                if is_vol:
+                    idx = tuple(returns_df.index)
+                    vals = [tuple(row) for row in returns_df.values]
+                    cols = tuple(returns_df.columns)
+                    active_input = _compute_garch_volatilities((idx, vals, cols))
+                else:
+                    active_input = returns_df.copy()
+
+                with st.spinner(f"Fitting {model_engine} on {pfx} space at τ={quantile:.2f} and simulating +2σ GIRF spillovers…"):
                     if "LSTM" in model_engine:
                         m = LSTMQuantileModel(
                             seq_len=max(2, cfg.get("lags", 5)),
@@ -103,8 +153,10 @@ def render_page(model_input, returns_df, cfg):
                     metrics = girf.calculate_connectedness_metrics(spill_df)
                     st.session_state["spillover_df"] = spill_df
                     st.session_state["metrics"] = metrics
+                    st.session_state["is_vol_domain"] = is_vol
                     st.session_state["active_model_label"] = (
-                        f"{model_engine} (τ={quantile:.2f}, {_regime_label(quantile)})"
+                        f"{model_engine} · {'GJR-GARCH Volatility' if is_vol else 'Log Returns'} "
+                        f"(τ={quantile:.2f}, {_regime_label(quantile, is_vol=is_vol)})"
                     )
                 st.rerun()
             except Exception as e:
@@ -116,21 +168,24 @@ def render_page(model_input, returns_df, cfg):
         if spill_df is not None and metrics is not None:
             st.markdown("---")
 
+            is_vol_current = st.session_state.get("is_vol_domain", is_vol)
+            active_pfx = "Volatility" if is_vol_current else "Risk"
+
             # Risk flow charts
-            render_spillover_charts(metrics)
+            render_spillover_charts(metrics, label_prefix=active_pfx)
 
             # Spillover matrix
-            st.markdown("**Directional Risk Flow Matrix (%)**")
-            st.caption("How much of each sector's forecast variance is explained by shocks from other sectors. Rows = receiving sector. Columns = transmitting sector.")
-            render_spillover_matrix_table(spill_df, metrics)
+            st.markdown(f"**Directional {active_pfx} Flow Matrix (%)**")
+            st.caption(f"How much of each sector's forecast variance is explained by shocks from other sectors. Rows = receiving sector. Columns = transmitting sector.")
+            render_spillover_matrix_table(spill_df, metrics, label_prefix=active_pfx)
 
             with st.expander("Download results"):
-                download_csv(spill_df, "risk_spillover_matrix.csv", key="dl_spill")
+                download_csv(spill_df, f"{active_pfx.lower()}_spillover_matrix.csv", key="dl_spill")
 
             with st.expander("Advanced QVAR details"):
-                st.markdown("""
-**Method:** Equation-by-equation multi-quantile VAR framework. Each sector's returns are
-regressed on lagged returns of all sectors at quantile τ using quantile regression.
+                st.markdown(f"""
+**Method:** Equation-by-equation multi-quantile VAR framework. Modeled on **{active_pfx} space**
+regressed on lagged values of all sectors at quantile τ using quantile regression.
 
 **Spillover computation:** GIRF (Generalized Impulse Response Function) simulations apply a
 +2σ shock to each transmitting sector and measure forecast error variance absorbed by each
@@ -139,12 +194,12 @@ receiving sector over the specified horizon H.
 **Metric interpretation:**
 - **TCI (Systemic Connectedness):** Fraction of the total forecast variance explained by
   cross-sector spillovers (higher = more interconnected).
-- **Risk Transmitted:** Sum of all risk exported to other sectors.
-- **Risk Received:** Sum of all risk imported from other sectors.
-- **Net Risk Flow:** Transmitted minus Received. Positive = net transmitter.
+- **{active_pfx} Transmitted:** Sum of all {active_pfx.lower()} exported to other sectors.
+- **{active_pfx} Received:** Sum of all {active_pfx.lower()} imported from other sectors.
+- **Net {active_pfx} Flow:** Transmitted minus Received. Positive = net transmitter.
                 """)
         elif not run_btn:
-            st.info("Click **Run Analysis** to compute directional risk spillovers.")
+            st.info(f"Click **Run Analysis** to compute directional {pfx.lower()} spillovers.")
 
     # ── Tab 2: Connectedness Over Time ────────────────────────────────
     with tci_tab:

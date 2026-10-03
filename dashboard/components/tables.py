@@ -12,17 +12,20 @@ def render_descriptive_table(desc_stats_df):
     st.dataframe(desc_stats_df, use_container_width=True, height=450)
     st.caption("JB: Jarque-Bera Normality Test (p < 0.05 indicates fat tails). ADF: Augmented Dickey-Fuller Unit Root Test (p < 0.05 indicates stationarity).")
 
-def render_spillover_matrix_table(spill_df, metrics):
+def render_spillover_matrix_table(spill_df, metrics, label_prefix="Risk"):
     """
     Renders spillover matrix table with user-friendly headers and background gradient.
-    Rows = Receiving sectors (row sum of off-diagonals = Risk Received / FROM).
-    Columns = Transmitting sectors (column sum of off-diagonals = Risk Transmitted / TO).
+    Rows = Receiving sectors (row sum of off-diagonals = Received / FROM).
+    Columns = Transmitting sectors (column sum of off-diagonals = Transmitted / TO).
     """
+    from_header = f"{label_prefix} Received (FROM)"
+    to_header = f"{label_prefix} Transmitted (TO)"
+
     display_spill = spill_df.copy()
-    display_spill["Risk Received (FROM)"] = metrics["FROM"]
-    to_row = pd.Series(metrics["TO"], name="Risk Transmitted (TO)")
+    display_spill[from_header] = metrics["FROM"]
+    to_row = pd.Series(metrics["TO"], name=to_header)
     display_spill = pd.concat([display_spill, pd.DataFrame([to_row])])
-    display_spill.loc["Risk Transmitted (TO)", "Risk Received (FROM)"] = metrics["TCI"]
+    display_spill.loc[to_header, from_header] = metrics["TCI"]
 
     try:
         st.dataframe(

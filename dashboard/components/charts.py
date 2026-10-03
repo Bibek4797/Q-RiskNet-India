@@ -244,8 +244,8 @@ def render_correlation_chart(corr_df, key=None):
     _render_plotly(fig, height=500, key=key)
 
 
-def render_spillover_charts(metrics, key_net=None, key_tf=None):
-    """Renders Net Risk Flow bar chart and Gross Risk Flow (Transmitted vs Received) bar chart."""
+def render_spillover_charts(metrics, key_net=None, key_tf=None, label_prefix="Risk"):
+    """Renders Net Flow bar chart and Gross Flow (Transmitted vs Received) bar chart."""
     col1, col2 = st.columns(2)
     with col1:
         net_series = metrics['NET'].sort_values()
@@ -253,16 +253,19 @@ def render_spillover_charts(metrics, key_net=None, key_tf=None):
             x=net_series.values, y=net_series.index,
             orientation='h', color=net_series.values,
             color_continuous_scale="RdYlGn_r",
-            title="Net Risk Flow (Risk Transmitted - Received)",
-            labels={"x": "Net Risk Flow (%)", "y": "Sector"}
+            title=f"Net {label_prefix} Flow ({label_prefix} Transmitted - Received)",
+            labels={"x": f"Net {label_prefix} Flow (%)", "y": "Sector"}
         )
         _render_plotly(fig_net, height=400, key=key_net)
 
     with col2:
-        to_from_df = pd.DataFrame({"Risk Transmitted": metrics['TO'], "Risk Received": metrics['FROM']})
+        to_from_df = pd.DataFrame({
+            f"{label_prefix} Transmitted": metrics['TO'],
+            f"{label_prefix} Received": metrics['FROM']
+        })
         fig_tf = px.bar(
             to_from_df, barmode='group',
-            title="Gross Risk Flow (Transmitted vs Received)"
+            title=f"Gross {label_prefix} Flow (Transmitted vs Received)"
         )
         _render_plotly(fig_tf, height=400, key=key_tf)
 
