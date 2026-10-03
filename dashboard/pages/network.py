@@ -60,8 +60,8 @@ def render_page(returns_df):
         cent_df = net_res["centrality_df"]
         gs = net_res["global_stats"]
 
-        # 4 summary KPIs
-        k1, k2, k3, k4 = st.columns(4)
+        # 3 summary KPIs
+        k1, k2, k3 = st.columns(3)
         top_transmitter = (
             cent_df.sort_values("Out_Degree_Export", ascending=False).iloc[0]["Sector"]
             if not cent_df.empty else "N/A"
@@ -74,25 +74,20 @@ def render_page(returns_df):
             cent_df.sort_values("PageRank_Centrality", ascending=False).iloc[0]["Sector"]
             if "PageRank_Centrality" in cent_df.columns and not cent_df.empty else "N/A"
         )
-        top_bridge = (
-            cent_df.sort_values("Betweenness_Centrality", ascending=False).iloc[0]["Sector"]
-            if "Betweenness_Centrality" in cent_df.columns and not cent_df.empty else "N/A"
-        )
 
         k1.metric("Top Risk Transmitter", top_transmitter,
                   help="Sector with the highest total outbound risk spillover")
         k2.metric("Top Risk Receiver", top_receiver,
                   help="Sector with the highest total inbound risk spillover")
-        k3.metric("Most Systemically Important", top_hub,
-                  help="Sector with the highest network influence (PageRank)")
-        k4.metric("Key Bridge Sector", top_bridge,
-                  help="Sector that most frequently lies on the shortest risk-transmission paths (betweenness)")
+        k3.metric("Top Systemic Hub (PageRank)", top_hub,
+                  help="Sector with the highest network cascade influence (PageRank)")
 
-        # Simplified ranking table — friendly columns only
+        # Simplified ranking table — aligned with CV
         friendly_cols = {
             "Out_Degree_Export": "Risk Transmitted (%)",
             "In_Degree_Import": "Risk Received (%)",
-            "Net_Degree_Export": "Net Risk Flow (%)"
+            "Net_Degree_Export": "Net Risk Flow (%)",
+            "PageRank_Centrality": "Systemic Influence (PageRank)"
         }
         show_cols = ["Sector"] + [v for k, v in friendly_cols.items() if k in cent_df.columns]
         friendly_df = cent_df.rename(columns=friendly_cols)[show_cols]
@@ -100,27 +95,14 @@ def render_page(returns_df):
 
         st.dataframe(friendly_df, use_container_width=True, hide_index=True)
 
-        with st.expander("Advanced network metrics"):
-            st.caption("PageRank = systemic influence. Betweenness = bridge/contagion role. Eigenvector = connection to other important sectors.")
-            full_rename = {
-                "Out_Degree_Export": "Risk Transmitted (%)",
-                "In_Degree_Import": "Risk Received (%)",
-                "Net_Degree_Export": "Net Risk Flow (%)",
-                "PageRank_Centrality": "Systemic Influence (PageRank)",
-                "Eigenvector_Centrality": "Systemic Importance (Eigenvector)",
-                "Betweenness_Centrality": "Bridge Role (Betweenness)",
-                "Closeness_Centrality": "Closeness"
-            }
-            st.dataframe(cent_df.rename(columns=full_rename), use_container_width=True, hide_index=True)
+        st.markdown(f"""
+        **Network summary:**
+        - Risk connections above threshold: **{gs.get('Edge_Count', '—')}**
+        - Network density: **{gs.get('Network_Density', 0):.3f}**
+        """)
 
-            st.markdown(f"""
-            **Network summary:**
-            - Risk connections above threshold: **{gs.get('Edge_Count', '—')}**
-            - Network density: **{gs.get('Network_Density', 0):.3f}**
-            """)
-
-            with st.expander("Download network metrics"):
-                download_csv(cent_df.rename(columns=full_rename), "network_systemic_rankings.csv", key="dl_cent")
+        with st.expander("Download network metrics"):
+            download_csv(friendly_df, "network_systemic_rankings.csv", key="dl_cent")
 
     except Exception as e:
         st.error(f"Centrality calculation error: {str(e)}")
