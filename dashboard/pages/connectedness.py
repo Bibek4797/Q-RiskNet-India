@@ -58,8 +58,8 @@ def render_page(model_input, returns_df, cfg):
 
     # ── Tab 1: Spillover Map ──────────────────────────────────────────
     with conn_tab:
-        # Controls — prominent two-row layout
-        c0, c1 = st.columns([1, 1])
+        # Controls — clean row focusing purely on Log Returns
+        c0, c1, c2 = st.columns([2.5, 3.0, 1.2])
         with c0:
             model_engine = st.selectbox(
                 "Model Engine",
@@ -68,38 +68,20 @@ def render_page(model_input, returns_df, cfg):
                 help="Choose between equation-by-equation Quantile Autoregression (QVAR) or Deep Learning PyTorch Quantile LSTM trained with Pinball Loss."
             )
         with c1:
-            vol_proxy = st.selectbox(
-                "Risk Input Space",
-                ["Log Returns", "Conditional Volatility (GJR-GARCH)"],
-                key="conn_vol_proxy",
-                help="Choose whether to model spillovers in raw log-return space or in estimated conditional volatility space."
-            )
-
-        c2, c3 = st.columns([3, 1])
-        with c2:
             quantile = st.select_slider(
                 "Market Regime (Quantile τ)",
                 options=[0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95],
                 value=0.50,
                 key="conn_tau"
             )
-        with c3:
+        with c2:
             st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
             run_btn = st.button("Run Analysis", type="primary", key="run_spill")
 
-        st.caption(f"τ = {quantile:.2f} — {_regime_label(quantile)}. Lower quantiles capture tail/downside risk spillovers.")
+        st.caption(f"τ = {quantile:.2f} — {_regime_label(quantile)}. Lower quantiles capture tail/downside risk spillovers on log returns.")
 
-        # Prepare input data
-        if vol_proxy == "Conditional Volatility (GJR-GARCH)":
-            garch_cols = {}
-            for col in returns_df.columns:
-                try:
-                    garch_cols[col] = garch.estimate_garch_volatility(returns_df[col])
-                except Exception:
-                    garch_cols[col] = returns_df[col]
-            active_input = pd.DataFrame(garch_cols, index=returns_df.index).dropna()
-        else:
-            active_input = returns_df.copy()
+        # Input data is strictly percentage log returns
+        active_input = returns_df.copy()
 
         # Run analysis
         if run_btn:
@@ -122,7 +104,7 @@ def render_page(model_input, returns_df, cfg):
                     st.session_state["spillover_df"] = spill_df
                     st.session_state["metrics"] = metrics
                     st.session_state["active_model_label"] = (
-                        f"{model_engine} (τ={quantile:.2f}, {_regime_label(quantile)}, {vol_proxy})"
+                        f"{model_engine} (τ={quantile:.2f}, {_regime_label(quantile)})"
                     )
                 st.rerun()
             except Exception as e:
