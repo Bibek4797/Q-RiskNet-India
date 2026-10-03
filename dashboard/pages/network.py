@@ -39,7 +39,6 @@ def render_page(returns_df):
             0.0, 15.0, 2.0, 0.5,
             help="Hide edges below this spillover threshold to reduce clutter"
         )
-        layout = st.selectbox("Layout", ["circular", "spring"], label_visibility="collapsed")
         comm_mode = st.radio("Clusters", ["Auto-detect", "Manual"], horizontal=True)
         if comm_mode == "Manual":
             max_c = max(2, len(spill_df.columns) - 1)
@@ -51,7 +50,7 @@ def render_page(returns_df):
         try:
             comms = spectral.detect_communities(spill_df, n_communities=n_comm)
             net_key = f"net_graph_{st.session_state.get('key_net_graph', 0)}"
-            render_network_graph(spill_df, comms, min_edge, layout, key=net_key)
+            render_network_graph(spill_df, comms, min_edge, layout_style="circular", key=net_key)
         except Exception as e:
             diag.log_error("Network rendering failure", e)
             st.error(f"Network rendering error: {str(e)}")
@@ -136,14 +135,79 @@ def render_page(returns_df):
     st.markdown("---")
 
     # ── Minimum Spanning Tree ─────────────────────────────────────────
-    st.markdown("### Risk Backbone (MST)")
+    st.markdown("### Risk Backbone (Minimum Spanning Tree — Prim's Algorithm)")
     st.caption(
-        "The Minimum Spanning Tree filters noise and reveals the strongest correlation-based "
-        "connections between sectors — the primary channels through which market stress propagates."
+        "Extracts the acyclic topological backbone connecting all 10 sectoral indices via the strongest risk channels "
+        "using Prim's greedy minimum spanning tree algorithm."
     )
+
+    mst_col1, mst_col2 = st.columns([1, 1])
+    with mst_col1:
+        mst_source = st.selectbox(
+            "Backbone Source Space",
+            ["Directed Spillover Matrix (Diebold-Yilmaz / GJR-GARCH)", "Pearson Correlation Distance (Mantegna 1999)"],
+            index=0,
+            help="Extract backbone from directional systemic spillovers or pairwise return correlation distance"
+        )
+    with mst_col2:
+        if "Spillover" in mst_source:
+            pairwise_rule = st.selectbox(
+                "Pairwise Spillover Rule (Between Sector i and j)",
+                ["Sum: Total Bilateral (S_ij + S_ji)", "Max: Peak Contagion (max(S_ij, S_ji))"],
+                index=0,
+                help=(
+                    "Sum: Total 2-way bilateral spillover exchange. "
+                    "Max: Peak one-way contagion vulnerability."
+                )
+            )
+        else:
+            st.markdown(
+                "<div style='font-size:0.75rem; color:#94a3b8; padding-top:28px;'>"
+                "Mantegna metric: <code>d_ij = √(2(1 - ρ_ij))</code> (Symmetric: ρ_ij = ρ_ji)"
+                "</div>",
+                unsafe_allow_html=True
+            )
+            pairwise_rule = None
+
     try:
-        dist = mst.compute_correlation_distance(returns_df)
-        mst_g = mst.construct_mst(dist)
-        render_mst_graph(mst_g, dist)
+        if "Spillover" in mst_source:
+            method_key = "max" if (pairwise_rule and "Max" in pairwise_rule) else "sum"
+            dist_matrix, weights_df = mst.compute_spillover_distance(spill_df, method=method_key)
+            mst_g = mst.construct_mst(dist_matrix, algorithm="prim", weights_df=weights_df)
+            rule_label = "Peak Contagion: max(S_ij, S_ji)" if method_key == "max" else "Total Bilateral: S_ij + S_ji"
+            plot_title = f"Systemic Risk Backbone — Prim's MST (Spillover: {rule_label})"
+        else:
+            dist_matrix = mst.compute_correlation_distance(returns_df)
+            weights_df = None
+            mst_g = mst.construct_mst(dist_matrix, algorithm="prim")
+            plot_title = "Systemic Risk Backbone — Prim's MST (Mantegna Correlation Distance)"
+
+        render_mst_graph(mst_g, dist_matrix, title=plot_title)
+
+        # MST Edges Detail Table
+        mst_edges = []
+        for u, v, d in mst_g.edges(data=True):
+            row = {
+                "Sector 1": u,
+                "Sector 2": v,
+                "MST Distance": round(float(d.get("weight", 0.0)), 4)
+            }
+            if "bilateral_weight" in d:
+                row["Bilateral Spillover (%)"] = round(float(d["bilateral_weight"]), 2)
+            elif "Spillover" not in mst_source:
+                d_val = float(d.get("weight", 0.0))
+                row["Pearson Correlation (r)"] = round(1.0 - 0.5 * (d_val ** 2), 4)
+            mst_edges.append(row)
+
+        mst_edges_df = pd.DataFrame(mst_edges)
+        if "Bilateral Spillover (%)" in mst_edges_df.columns:
+            mst_edges_df = mst_edges_df.sort_values("Bilateral Spillover (%)", ascending=False)
+        elif "Pearson Correlation (r)" in mst_edges_df.columns:
+            mst_edges_df = mst_edges_df.sort_values("Pearson Correlation (r)", ascending=False)
+
+        with st.expander("View MST Backbone Edges (Prim's Algorithm)", expanded=False):
+            st.dataframe(mst_edges_df, use_container_width=True, hide_index=True)
+            download_csv(mst_edges_df, "mst_backbone_edges.csv", key="dl_mst_edges")
+
     except Exception as e:
         st.error(f"MST error: {str(e)}")

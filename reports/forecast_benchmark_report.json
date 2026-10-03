@@ -1,8 +1,8 @@
 {
     "target_sector": "Bank",
     "evaluation_method": "Chronological Walk-Forward Expanding Window",
-    "best_performing_model": "Support Vector Regression",
-    "best_model_rmse": 1.2819,
-    "best_model_pinball_loss": 0.4851,
-    "best_model_directional_accuracy": 53.85
+    "best_performing_model": "Quantile LSTM",
+    "best_model_rmse": 2.8381,
+    "best_model_pinball_loss": 0.1785,
+    "best_model_directional_accuracy": 50.0
 }

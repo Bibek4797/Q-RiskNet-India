@@ -270,7 +270,7 @@ def render_spillover_charts(metrics, key_net=None, key_tf=None, label_prefix="Ri
         _render_plotly(fig_tf, height=400, key=key_tf)
 
 
-def render_network_graph(spill_df, comms, min_edge, layout_style, key=None):
+def render_network_graph(spill_df, comms, min_edge, layout_style="circular", key=None):
     """Renders Plotly directed risk spillover network graph."""
     fig = vis.render_spillover_network(
         spill_df, communities=comms,
@@ -279,9 +279,9 @@ def render_network_graph(spill_df, comms, min_edge, layout_style, key=None):
     _render_plotly(fig, height=600, key=key)
 
 
-def render_mst_graph(mst_graph, dist_matrix, key=None):
+def render_mst_graph(mst_graph, dist_matrix, title="Minimum Spanning Tree (MST) Risk Backbone (Prim's Algorithm)", key=None):
     """Renders Minimum Spanning Tree (MST) graph."""
-    fig = vis.render_mst_network(mst_graph, dist_matrix)
+    fig = vis.render_mst_network(mst_graph, dist_matrix, title=title)
     _render_plotly(fig, height=550, key=key)
 
 

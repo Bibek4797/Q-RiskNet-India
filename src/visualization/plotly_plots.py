@@ -120,35 +120,55 @@ def render_spillover_network(spillover_df, communities=None, min_threshold_pct=2
         return fig
 
 
-def render_mst_network(mst_graph, dist_matrix):
+def render_mst_network(mst_graph, dist_matrix, title="Minimum Spanning Tree (MST) Risk Backbone (Prim's Algorithm)"):
     """
-    Renders Plotly layout for Minimum Spanning Tree (MST) backbone.
+    Renders Plotly layout for Minimum Spanning Tree (MST) backbone generated via Prim's algorithm.
     """
     with diag.DiagnosticTimer("Plotly MST network drawing"):
         pos = nx.spring_layout(mst_graph, seed=42)
-        edge_x, edge_y, edge_text = [], [], []
+        edge_x, edge_y = [], []
+        edge_mid_x, edge_mid_y, edge_hover_text = [], [], []
         
         for u, v, d in mst_graph.edges(data=True):
             x0, y0 = pos[u]
             x1, y1 = pos[v]
             edge_x.extend([x0, x1, None])
             edge_y.extend([y0, y1, None])
-            dist_val = d['weight']
-            edge_text.append(f"Distance ({u} - {v}): {dist_val:.4f}")
+            
+            dist_val = d.get('weight', 0.0)
+            bw = d.get('bilateral_weight', None)
+            
+            edge_mid_x.append((x0 + x1) / 2.0)
+            edge_mid_y.append((y0 + y1) / 2.0)
+            if bw is not None:
+                edge_hover_text.append(f"Risk Channel: <b>{u} — {v}</b><br>Bilateral Spillover: <b>{bw:.2f}%</b><br>Prim Distance: {dist_val:.3f}")
+            else:
+                edge_hover_text.append(f"Correlation Channel: <b>{u} — {v}</b><br>Mantegna Distance: <b>{dist_val:.4f}</b>")
             
         edge_trace = go.Scatter(
             x=edge_x, y=edge_y,
-            line=dict(width=2, color='#38bdf8'),
+            line=dict(width=2.5, color='#38bdf8'),
             mode='lines',
             hoverinfo='none'
         )
+
+        edge_hover_trace = go.Scatter(
+            x=edge_mid_x, y=edge_mid_y,
+            mode='markers',
+            marker=dict(size=14, color='#38bdf8', opacity=0.01),
+            hoverinfo='text',
+            hovertext=edge_hover_text
+        )
         
-        node_x, node_y, node_names = [], [], []
+        node_x, node_y, node_names, node_hovers = [], [], [], []
+        degrees = dict(mst_graph.degree())
         for node in mst_graph.nodes():
             x, y = pos[node]
             node_x.append(x)
             node_y.append(y)
             node_names.append(node)
+            deg = degrees.get(node, 0)
+            node_hovers.append(f"Sector: <b>{node}</b><br>MST Degree (Connections): <b>{deg}</b>")
             
         node_trace = go.Scatter(
             x=node_x, y=node_y,
@@ -156,16 +176,17 @@ def render_mst_network(mst_graph, dist_matrix):
             text=node_names,
             textposition="top center",
             marker=dict(
-                size=22,
+                size=[min(38, 20 + 4 * degrees.get(n, 1)) for n in mst_graph.nodes()],
                 color='#f43f5e',
                 line=dict(width=2, color='#ffffff')
             ),
-            hoverinfo='text'
+            hoverinfo='text',
+            hovertext=node_hovers
         )
         
-        fig = go.Figure(data=[edge_trace, node_trace])
+        fig = go.Figure(data=[edge_trace, edge_hover_trace, node_trace])
         fig.update_layout(
-            title=dict(text="Minimum Spanning Tree (MST) Risk Backbone", font=dict(size=14, color='#94a3b8'), x=0.0, xanchor='left'),
+            title=dict(text=title, font=dict(size=14, color='#94a3b8'), x=0.0, xanchor='left'),
             showlegend=False,
             margin=dict(b=20, l=20, r=20, t=44),
             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, autorange=True, fixedrange=False),
