@@ -39,18 +39,11 @@ def render_page(returns_df):
             0.0, 15.0, 2.0, 0.5,
             help="Hide edges below this spillover threshold to reduce clutter"
         )
-        comm_mode = st.radio("Clusters", ["Auto-detect", "Manual"], horizontal=True)
-        if comm_mode == "Manual":
-            max_c = max(2, len(spill_df.columns) - 1)
-            n_comm = st.slider("Number of clusters", 2, max_c, min(3, max_c)) if max_c > 2 else 2
-        else:
-            n_comm = "auto"
 
     with ctrl1:
         try:
-            comms = spectral.detect_communities(spill_df, n_communities=n_comm)
             net_key = f"net_graph_{st.session_state.get('key_net_graph', 0)}"
-            render_network_graph(spill_df, comms, min_edge, layout_style="circular", key=net_key)
+            render_network_graph(spill_df, None, min_edge, layout_style="circular", key=net_key)
         except Exception as e:
             diag.log_error("Network rendering failure", e)
             st.error(f"Network rendering error: {str(e)}")

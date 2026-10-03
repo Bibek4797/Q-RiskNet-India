@@ -181,25 +181,34 @@ def _render_forecast_benchmark_section(returns_df):
 
         target_breach = evaluated_tau * 100.0
         col_rename = {
-            "RMSE": "RMSE",
-            "MAE": "MAE",
             "Pinball_Loss": "Pinball Loss (Quantile Loss)",
             "VaR_Breach_Rate_Pct": f"VaR Breach Rate (%) [Target: {target_breach:.1f}%]"
         }
-        friendly_fc = summary_display.rename(columns=col_rename)
-        min_cols = [c for c in ["Pinball Loss (Quantile Loss)", "RMSE", "MAE"] if c in friendly_fc.columns]
+
+        # Focus primary display on valid quantile metrics (Pinball Loss & Breach Rate)
+        primary_cols = [c for c in ["Target_Sector", "Model", "Evaluation", "Pinball_Loss", "VaR_Breach_Rate_Pct"] if c in summary_display.columns]
+        friendly_fc = summary_display[primary_cols].rename(columns=col_rename)
 
         try:
-            styled_fc = friendly_fc.style.highlight_min(subset=min_cols, color="#10b981")
-            st.dataframe(styled_fc, use_container_width=True)
+            styled_fc = friendly_fc.style.highlight_min(subset=["Pinball Loss (Quantile Loss)"], color="#10b981")
+            st.dataframe(styled_fc, use_container_width=True, hide_index=True)
         except Exception:
-            st.dataframe(friendly_fc, use_container_width=True)
+            st.dataframe(friendly_fc, use_container_width=True, hide_index=True)
 
         st.caption(
-            f"**Evaluation Guide (τ = {evaluated_tau:.2f}):** "
-            f"• **Pinball Loss**: The master quantile loss function (lower = superior tail-risk estimation). "
-            f"• **VaR Breach Rate (%)**: Percentage of days where actual loss exceeded the forecast. Theoretical target is **{target_breach:.1f}%**."
+            f"**Evaluation Guide (Quantile τ = {evaluated_tau:.2f}):** "
+            f"• **Pinball Loss (Tick Loss)**: Strictly consistent scoring function for quantile models (lower = superior tail-risk estimation). "
+            f"• **VaR Breach Rate (%)**: Percentage of out-of-sample days where actual loss exceeded the forecast. Theoretical target is **{target_breach:.1f}%**."
         )
+
+        with st.expander("Classical Mean Metrics (RMSE / MAE)", expanded=False):
+            st.caption(
+                "Econometric Note: In tail-risk quantile estimation (τ = 0.05 / 0.10), RMSE and MAE are mathematically non-applicable "
+                "because the model is estimating the 5th percentile boundary rather than the conditional mean. "
+                "They are provided here solely for classical reference."
+            )
+            mean_cols = [c for c in ["Target_Sector", "Model", "Evaluation", "RMSE", "MAE"] if c in summary_display.columns]
+            st.dataframe(summary_display[mean_cols], use_container_width=True, hide_index=True)
 
         render_forecast_benchmark_chart(fc_res["predictions_df"], evaluated_sec)
 

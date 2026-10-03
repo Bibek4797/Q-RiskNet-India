@@ -108,7 +108,7 @@ forecast error variance decomposition approach.
 return shocks generate disproportionately larger volatility increases than positive shocks.
 
 **Financial Network Science** — Constructs directed risk graphs, Minimum Spanning Trees
-(MST), and spectral community clusters to identify systemic hubs and risk backbone.
+(MST), and PageRank centrality to identify systemic hubs and the risk backbone.
 
 **Quantile LSTM** — A PyTorch sequence model trained under Pinball Loss with
 chronological train/validation split and early stopping on out-of-sample pinball loss.

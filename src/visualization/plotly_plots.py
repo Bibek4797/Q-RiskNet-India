@@ -85,10 +85,14 @@ def render_spillover_network(spillover_df, communities=None, min_threshold_pct=2
             x, y = pos[node]
             node_x.append(x)
             node_y.append(y)
-            comm_idx = communities[node] if (communities is not None and node in communities) else 0
-            color = COMMUNITY_COLORS[comm_idx % len(COMMUNITY_COLORS)]
-            node_colors.append(color)
-            node_text.append(f"Sector: <b>{node}</b><br>Cluster: Community {comm_idx + 1}")
+            if communities is not None and node in communities:
+                comm_idx = communities[node]
+                color = COMMUNITY_COLORS[comm_idx % len(COMMUNITY_COLORS)]
+                node_colors.append(color)
+                node_text.append(f"Sector: <b>{node}</b>")
+            else:
+                node_colors.append("#6366f1")
+                node_text.append(f"Sector: <b>{node}</b>")
             
         node_trace = go.Scatter(
             x=node_x, y=node_y,
