@@ -13,46 +13,71 @@ import src.diagnostics.logger as diag
 
 
 class RandomWalkModel:
-    """Naive Random Walk forecast: return = 0.0"""
-    def __init__(self):
-        pass
+    """Naive Random Walk forecast: return = 0.0 (or empirical quantile shift)"""
+    def __init__(self, quantile=0.50):
+        self.quantile = quantile
+        self.q_shift = 0.0
+
     def fit(self, y):
-        pass
+        if self.quantile != 0.50 and len(y) > 0:
+            self.q_shift = float(np.quantile(y, self.quantile))
+
     def predict(self, X_eval):
-        return np.zeros(len(X_eval))
+        return np.full(len(X_eval), self.q_shift)
 
 
 class HistoricalMeanModel:
-    """Historical Mean forecast: return = mean(y_train)"""
-    def __init__(self):
-        self.mean_val = 0.0
+    """Historical Mean / Empirical Quantile forecast baseline"""
+    def __init__(self, quantile=0.50):
+        self.quantile = quantile
+        self.val = 0.0
+
     def fit(self, y):
-        self.mean_val = float(np.mean(y))
+        if len(y) > 0:
+            if self.quantile == 0.50:
+                self.val = float(np.mean(y))
+            else:
+                self.val = float(np.quantile(y, self.quantile))
+
     def predict(self, X_eval):
-        return np.full(len(X_eval), self.mean_val)
+        return np.full(len(X_eval), self.val)
 
 
 class ARIMABenchmarkModel:
-    """ARIMA(1,0,1) classical econometric benchmark model"""
-    def __init__(self, order=(1, 0, 1)):
+    """ARIMA(1,0,1) classical econometric benchmark model with Gaussian quantile projection"""
+    def __init__(self, order=(1, 0, 1), quantile=0.50):
         self.order = order
+        self.quantile = quantile
         self.mean_val = 0.0
+        self.resid_std = 1.0
         self.res = None
+
     def fit(self, y):
         self.mean_val = float(np.mean(y))
         try:
             mod = ARIMA(y, order=self.order)
             self.res = mod.fit()
+            resid = getattr(self.res, "resid", None)
+            if resid is not None and len(resid) > 1:
+                self.resid_std = float(np.std(resid))
+            else:
+                self.resid_std = float(np.std(y)) if len(y) > 1 else 1.0
         except Exception:
             self.res = None
+            self.resid_std = float(np.std(y)) if len(y) > 1 else 1.0
+
     def predict(self, X_eval):
+        shift = 0.0
+        if self.quantile != 0.50:
+            shift = float(norm.ppf(self.quantile)) * self.resid_std
+
         if self.res is not None:
             try:
                 fc = self.res.forecast(steps=len(X_eval))
-                return np.array(fc)
+                return np.array(fc) + shift
             except Exception:
                 pass
-        return np.full(len(X_eval), self.mean_val)
+        return np.full(len(X_eval), self.mean_val + shift)
 
 
 class RandomForestBenchmarkModel:
@@ -78,13 +103,23 @@ class GradientBoostingBenchmarkModel:
 
 
 class SVRBenchmarkModel:
-    """Support Vector Regression (RBF Kernel) ML benchmark"""
-    def __init__(self, C=1.0, epsilon=0.1):
+    """Support Vector Regression (RBF Kernel) ML benchmark with empirical residual quantile projection"""
+    def __init__(self, C=1.0, epsilon=0.1, quantile=0.50):
         self.model = SVR(C=C, epsilon=epsilon, kernel='rbf')
+        self.quantile = quantile
+        self.resid_q = 0.0
+
     def fit(self, X, y):
         self.model.fit(X, y)
+        if self.quantile != 0.50:
+            preds = self.model.predict(X)
+            resids = np.array(y) - preds
+            self.resid_q = float(np.quantile(resids, self.quantile))
+        else:
+            self.resid_q = 0.0
+
     def predict(self, X):
-        return self.model.predict(X)
+        return self.model.predict(X) + self.resid_q
 
 
 def calculate_pinball_loss(y_true, y_pred, quantile=0.50):

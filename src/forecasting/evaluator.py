@@ -33,10 +33,10 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
     start_idx = int(N * initial_ratio)
 
     models = {
-        "Random Walk (Naive)": RandomWalkModel(),
-        "Historical Mean": HistoricalMeanModel(),
-        "ARIMA(1,0,1)": ARIMABenchmarkModel(),
-        "Support Vector Regression": SVRBenchmarkModel()
+        "Random Walk (Naive)": RandomWalkModel(quantile=quantile),
+        "Historical Mean": HistoricalMeanModel(quantile=quantile),
+        "ARIMA(1,0,1)": ARIMABenchmarkModel(quantile=quantile),
+        "Support Vector Regression": SVRBenchmarkModel(quantile=quantile)
     }
 
     preds_records = {m: [] for m in models}
@@ -112,13 +112,13 @@ def run_walk_forward_evaluation(returns_df, target_sector, initial_ratio=0.70, s
         return summary_df, pd.DataFrame(dm_list)
 
 
-def run_all_forecast_benchmarks(returns_df, target_sector, train_ratio=0.80, save_reports=True):
+def run_all_forecast_benchmarks(returns_df, target_sector, quantile=0.05, train_ratio=0.80, save_reports=True):
     """
     Master Forecasting Benchmark Evaluator.
     Runs both out-of-sample split and walk-forward evaluations across benchmarks and Quantile LSTM.
     """
-    with diag.DiagnosticTimer(f"Master Forecasting Benchmark Suite for {target_sector}"):
-        summary_df, dm_df = run_walk_forward_evaluation(returns_df, target_sector=target_sector, initial_ratio=0.70, step=15, quantile=0.50)
+    with diag.DiagnosticTimer(f"Master Forecasting Benchmark Suite for {target_sector} (tau={quantile})"):
+        summary_df, dm_df = run_walk_forward_evaluation(returns_df, target_sector=target_sector, initial_ratio=0.70, step=15, quantile=quantile)
 
         # Single out-of-sample split predictions for overlay charting
         X, y, feat_names = create_lagged_features(returns_df, target_sector=target_sector, lags=5)
@@ -126,19 +126,19 @@ def run_all_forecast_benchmarks(returns_df, target_sector, train_ratio=0.80, sav
         y_test = y.iloc[split_idx:]
         
         # Generate baseline predictions for display chart
-        rw = RandomWalkModel()
+        rw = RandomWalkModel(quantile=quantile)
         rw.fit(y.iloc[:split_idx].values)
         rw_p = rw.predict(y_test.values)
 
-        ar = ARIMABenchmarkModel()
+        ar = ARIMABenchmarkModel(quantile=quantile)
         ar.fit(y.iloc[:split_idx].values)
         ar_p = ar.predict(y_test.values)
 
-        svr = SVRBenchmarkModel()
+        svr = SVRBenchmarkModel(quantile=quantile)
         svr.fit(X.iloc[:split_idx].values, y.iloc[:split_idx].values)
         svr_p = svr.predict(X.iloc[split_idx:].values)
 
-        lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=0.50, epochs=20, early_stopping=True, patience=3)
+        lstm_m = LSTMQuantileModel(seq_len=5, hidden_dim=16, quantile=quantile, epochs=20, early_stopping=True, patience=3)
         lstm_m.fit(returns_df.iloc[:split_idx])
         lstm_fc = lstm_m.forecast(returns_df.iloc[:split_idx], steps=len(y_test))
         lstm_p = lstm_fc[target_sector].values[:len(y_test)] if target_sector in lstm_fc.columns else np.zeros(len(y_test))

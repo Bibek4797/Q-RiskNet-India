@@ -135,30 +135,45 @@ def _render_forecast_benchmark_section(returns_df):
     st.markdown("**Walk-Forward Model Benchmark (PyTorch Quantile LSTM vs ARIMA & SVR)**")
     st.caption("Chronological expanding-window walk-forward evaluation (no look-ahead bias). Benchmarks deep-learning tail-risk modeling against classical econometric and ML baselines.")
 
-    sec = st.selectbox(
-        "Target sector",
-        list(returns_df.columns),
-        key="pv_fc_sec",
-        label_visibility="visible"
-    )
+    c_sec, c_tau = st.columns([3, 2])
+    with c_sec:
+        sec = st.selectbox(
+            "Target sector",
+            list(returns_df.columns),
+            key="pv_fc_sec",
+            label_visibility="visible"
+        )
+    with c_tau:
+        tau_val = st.selectbox(
+            "Target quantile (τ)",
+            options=[0.05, 0.10, 0.50],
+            index=0,
+            format_func=lambda x: f"τ = {x:.2f} ({'Extreme Tail / VaR 95%' if x == 0.05 else 'Moderate Tail / VaR 90%' if x == 0.10 else 'Median / Normal'})",
+            key="pv_fc_tau"
+        )
+
     run_fc_btn = st.button("Run Walk-Forward Benchmark", type="primary", key="run_pv_fc")
 
     if run_fc_btn:
-        with st.spinner(f"Evaluating models on expanding windows for {sec}…"):
+        with st.spinner(f"Evaluating models on expanding windows for {sec} at τ = {tau_val:.2f}…"):
             try:
                 fc_res = evaluator.run_all_forecast_benchmarks(
-                    returns_df, target_sector=sec, train_ratio=0.80, save_reports=True
+                    returns_df, target_sector=sec, quantile=tau_val, train_ratio=0.80, save_reports=True
                 )
                 st.session_state["pv_fc_results"] = fc_res
-                st.session_state["pv_fc_sec"] = sec
+                st.session_state["pv_fc_evaluated_sec"] = sec
+                st.session_state["pv_fc_evaluated_tau"] = tau_val
             except Exception as e:
                 st.error(f"Forecast evaluation error: {str(e)}")
 
     fc_res = st.session_state.get("pv_fc_results")
-    target_sec = st.session_state.get("pv_fc_sec", sec)
+    evaluated_sec = st.session_state.get("pv_fc_evaluated_sec")
+    evaluated_tau = st.session_state.get("pv_fc_evaluated_tau", 0.05)
 
-    if fc_res is not None:
-        st.markdown(f"*Out-of-sample benchmark results for {target_sec}*")
+    if fc_res is not None and evaluated_sec is not None:
+        st.markdown(f"**Out-of-sample benchmark results for {evaluated_sec} (Quantile τ = {evaluated_tau:.2f})**")
+        if sec != evaluated_sec or tau_val != evaluated_tau:
+            st.info(f"Controls changed to **{sec} (τ = {tau_val:.2f})**. Click **Run Walk-Forward Benchmark** to update results.")
 
         summary_display = fc_res["summary_df"].copy()
         if "Directional_Accuracy_Pct" in summary_display.columns:
@@ -178,7 +193,7 @@ def _render_forecast_benchmark_section(returns_df):
         except Exception:
             st.dataframe(friendly_fc, use_container_width=True)
 
-        render_forecast_benchmark_chart(fc_res["predictions_df"], target_sec)
+        render_forecast_benchmark_chart(fc_res["predictions_df"], evaluated_sec)
 
         with st.expander("Diebold-Mariano test (vs naive random walk)"):
             st.caption("Tests whether each model's forecast errors are statistically different from a naive random walk. Negative DM statistic = model outperforms random walk.")
